@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 
 class OdooerInventoryValuationLine(models.TransientModel):
@@ -103,8 +104,30 @@ class OdooerInventoryValuationWizard(models.TransientModel):
     def action_compute(self):
         """Run the SQL valuation query and populate line_ids."""
         self.ensure_one()
-        self.line_ids.unlink()
 
+        # Guard: require both the feature flag and at least some fifo links
+        if not self.company_id.odooer_fifo_enabled:
+            raise UserError(
+                self.env._("FIFO Cost-Flow Tracking is not enabled for company '%s'.\n"
+                           "Go to Inventory › Configuration › Settings and enable it, "
+                           "then run Regenerate FIFO Links.", self.company_id.name)
+            )
+
+        self.env.cr.execute(
+            "SELECT COUNT(*) FROM odooer_fifo_link fl "
+            "INNER JOIN stock_move sm ON sm.id = fl.outgoing_move_id "
+            "WHERE sm.company_id = %s",
+            [self.company_id.id]
+        )
+        link_count = self.env.cr.fetchone()[0]
+        if link_count == 0:
+            raise UserError(
+                self.env._("No FIFO cost-flow links found for company '%s'.\n"
+                           "Please run Inventory › Odooer › Reporting › "
+                           "Regenerate FIFO Links first.", self.company_id.name)
+            )
+
+        self.line_ids.unlink()
         rows = self._fetch_valuation_rows()
         if not rows:
             return
