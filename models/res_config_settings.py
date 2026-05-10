@@ -9,4 +9,5 @@ class ResConfigSettings(models.TransientModel):
         related='company_id.odooer_fifo_enabled',
         readonly=False,
         string='Enable FIFO Cost-Flow Tracking (Odooer)',
+        implied_group='odooer_stock.group_odooer_fifo_enabled',
     )

@@ -30,6 +30,7 @@ Key features:
         'stock_landed_costs',
     ],
     'data': [
+        'security/odooer_groups.xml',
         'security/ir.model.access.csv',
         'views/res_config_settings_views.xml',
         'views/odooer_inventory_valuation_views.xml',

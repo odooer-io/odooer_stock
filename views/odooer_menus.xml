@@ -5,18 +5,21 @@
     <menuitem id="menu_odooer_stock_root"
               name="Odooer"
               parent="stock.menu_stock_root"
-              sequence="99"/>
+              sequence="99"
+              groups="odooer_stock.group_odooer_fifo_enabled"/>
 
     <menuitem id="menu_odooer_stock_reporting"
               name="Reporting"
               parent="menu_odooer_stock_root"
-              sequence="10"/>
+              sequence="10"
+              groups="odooer_stock.group_odooer_fifo_enabled"/>
 
     <menuitem id="menu_odooer_inventory_valuation"
               name="Inventory Valuation"
               parent="menu_odooer_stock_reporting"
               action="action_odooer_inventory_valuation"
-              sequence="10"/>
+              sequence="10"
+              groups="odooer_stock.group_odooer_fifo_enabled"/>
 
     <menuitem id="menu_odooer_fifo_regenerate"
               name="Regenerate FIFO Links"
