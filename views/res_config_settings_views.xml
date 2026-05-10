@@ -8,11 +8,11 @@
         <field name="inherit_id" ref="stock_account.res_config_settings_view_form"/>
         <field name="arch" type="xml">
             <block name="valuation_setting_container" position="inside">
-                <setting id="odooer_fifo_enabled_setting"
+                <setting id="group_odooer_fifo_enabled_setting"
                          help="Links every outgoing delivery to the exact receipts it consumed (FIFO order), regardless of product costing method. Powers historical inventory valuation and the gross profit report.">
-                    <field name="odooer_fifo_enabled"/>
-                    <label for="odooer_fifo_enabled" string="FIFO Cost-Flow Tracking"/>
-                    <div class="content-group" invisible="not odooer_fifo_enabled">
+                    <field name="group_odooer_fifo_enabled"/>
+                    <label for="group_odooer_fifo_enabled" string="FIFO Cost-Flow Tracking"/>
+                    <div class="content-group" invisible="not group_odooer_fifo_enabled">
                         <div class="text-muted">
                             After enabling, go to <b>Inventory › Odooer › Reporting › Regenerate FIFO Links</b>
                             to build links for existing historical data.
