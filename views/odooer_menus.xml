@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Odooer reporting menu ─────────────────────────────────────────── -->
+    <menuitem id="menu_odooer_stock_root"
+              name="Odooer"
+              parent="stock.menu_stock_root"
+              sequence="99"/>
+
+    <menuitem id="menu_odooer_stock_reporting"
+              name="Reporting"
+              parent="menu_odooer_stock_root"
+              sequence="10"/>
+
+    <menuitem id="menu_odooer_inventory_valuation"
+              name="Inventory Valuation"
+              parent="menu_odooer_stock_reporting"
+              action="action_odooer_inventory_valuation"
+              sequence="10"/>
+
+</odoo>

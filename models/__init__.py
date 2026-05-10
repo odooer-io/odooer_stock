@@ -3,3 +3,4 @@ from . import odooer_fifo_link
 from . import stock_move
 from . import product_product
 from . import res_company
+from . import odooer_inventory_valuation
