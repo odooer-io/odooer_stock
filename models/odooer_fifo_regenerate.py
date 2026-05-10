@@ -58,7 +58,7 @@ class OdooerFifoRegenerate(models.TransientModel):
 
         self.env.cr.execute(
             "SELECT odooer_build_fifo_links(%s, %s)",
-            [self.company_id.id, self.from_date],
+            [self.company_id.id, self.from_date or None],
         )
         link_count = self.env.cr.fetchone()[0]
 
