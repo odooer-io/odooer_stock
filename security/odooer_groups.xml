@@ -3,7 +3,6 @@
     <data noupdate="1">
         <record id="group_odooer_fifo_enabled" model="res.groups">
             <field name="name">Odooer FIFO Tracking Enabled</field>
-            <field name="category_id" ref="base.module_category_hidden"/>
         </record>
     </data>
 </odoo>
