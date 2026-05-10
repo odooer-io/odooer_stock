@@ -32,6 +32,7 @@ Key features:
     'data': [
         'security/ir.model.access.csv',
         'views/odooer_inventory_valuation_views.xml',
+        'views/odooer_fifo_regenerate_views.xml',
         'views/odooer_menus.xml',
     ],
     'installable': True,

@@ -18,4 +18,11 @@
               action="action_odooer_inventory_valuation"
               sequence="10"/>
 
+    <menuitem id="menu_odooer_fifo_regenerate"
+              name="Regenerate FIFO Links"
+              parent="menu_odooer_stock_reporting"
+              action="action_odooer_fifo_regenerate"
+              sequence="90"
+              groups="stock.group_stock_manager"/>
+
 </odoo>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Regenerate wizard form ─────────────────────────────────────────── -->
+    <record id="view_odooer_fifo_regenerate_form" model="ir.ui.view">
+        <field name="name">odooer.fifo.regenerate.form</field>
+        <field name="model">odooer.fifo.regenerate</field>
+        <field name="arch" type="xml">
+            <form string="Regenerate FIFO Cost-Flow Links">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Regenerate FIFO Links</h1>
+                    </div>
+
+                    <!-- Ready state: show inputs -->
+                    <group invisible="state == 'done'">
+                        <group string="Scope">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="from_date"
+                                   placeholder="Leave empty to rebuild all history"/>
+                        </group>
+                        <group string="What this does">
+                            <div class="text-muted" colspan="2">
+                                <p>Builds <b>odooer.fifo.link</b> records for all existing stock moves
+                                using the FIFO algorithm. Run this once after installing the module
+                                on an existing database.</p>
+                                <p>If <b>From Date</b> is set, only outgoing moves from that date
+                                onward are reprocessed. Existing links before that date are preserved.</p>
+                                <p class="text-warning">
+                                    <i class="fa fa-clock-o"/> This operation may take several minutes
+                                    on databases with a large move history.
+                                </p>
+                            </div>
+                        </group>
+                    </group>
+
+                    <!-- Done state: show result -->
+                    <group invisible="state == 'draft'">
+                        <group string="Result">
+                            <field name="link_count" string="Links Created"/>
+                            <field name="duration_seconds" string="Duration (seconds)"/>
+                        </group>
+                        <group>
+                            <div class="text-success" colspan="2">
+                                <p><i class="fa fa-check-circle"/> Regeneration complete.
+                                You can now use the Inventory Valuation report.</p>
+                            </div>
+                        </group>
+                    </group>
+                    <field name="state" invisible="1"/>
+                </sheet>
+                <footer>
+                    <button name="action_regenerate" type="object"
+                            string="Regenerate" class="btn-primary"
+                            invisible="state == 'done'"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── Action ────────────────────────────────────────────────────────── -->
+    <record id="action_odooer_fifo_regenerate" model="ir.actions.act_window">
+        <field name="name">Regenerate FIFO Links</field>
+        <field name="res_model">odooer.fifo.regenerate</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>
