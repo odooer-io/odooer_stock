@@ -21,9 +21,19 @@ class OdooerInventoryValuationLine(models.TransientModel):
     uom_id = fields.Many2one(
         related='product_id.uom_id', string='Unit of Measure',
     )
-    cost_method = fields.Char(
-        related='product_id.categ_id.property_cost_method', string='Costing Method',
+    cost_method = fields.Selection(
+        selection=[
+            ('standard', 'Standard Price'),
+            ('fifo', 'First In First Out (FIFO)'),
+            ('average', 'Average Cost (AVCO)'),
+        ],
+        string='Costing Method',
+        compute='_compute_cost_method',
     )
+
+    def _compute_cost_method(self):
+        for line in self:
+            line.cost_method = line.product_id.categ_id.property_cost_method or False
     qty_on_hand = fields.Float(
         string='Quantity On Hand',
         digits='Product Unit of Measure',
