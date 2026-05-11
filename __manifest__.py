@@ -28,6 +28,7 @@ Key features:
         'stock_account',
         'purchase_stock',
         'stock_landed_costs',
+        'sale_stock',
     ],
     'data': [
         'security/odooer_groups.xml',
@@ -35,6 +36,7 @@ Key features:
         'views/res_config_settings_views.xml',
         'views/odooer_valuation_report_views.xml',
         'views/odooer_outgoing_report_views.xml',
+        'views/odooer_gp_report_views.xml',
         'views/odooer_fifo_regenerate_views.xml',
         'views/odooer_menus.xml',
     ],

@@ -166,7 +166,7 @@ BEGIN
 
     -- ── Step 3: Walk outgoing moves chronologically ───────────────────────
     FOR v_out IN
-        SELECT sm.id AS move_id, sm.product_id, sm.quantity AS out_qty
+        SELECT sm.id AS move_id, sm.product_id, sm.quantity AS out_qty, sm.date AS move_date
         FROM stock_move sm
         WHERE sm.is_out      = true
           AND sm.state       = 'done'
@@ -179,7 +179,7 @@ BEGIN
 
         -- Consume oldest incoming moves for this product (FIFO order)
         FOR v_in IN
-            SELECT move_id, remaining
+            SELECT move_id, remaining, move_value, move_qty, move_date
             FROM _odooer_fifo_remaining
             WHERE product_id = v_out.product_id
               AND remaining  > 0.0000001
@@ -191,9 +191,16 @@ BEGIN
 
             INSERT INTO odooer_fifo_link (
                 incoming_move_id, outgoing_move_id, quantity,
+                company_id, product_id,
+                incoming_date, outgoing_date,
+                unit_cost, outgoing_value,
                 create_uid, create_date, write_uid, write_date
             ) VALUES (
                 v_in.move_id, v_out.move_id, v_consumed,
+                p_company_id, v_out.product_id,
+                v_in.move_date, v_out.move_date,
+                CASE WHEN v_in.move_qty > 0 THEN v_in.move_value / v_in.move_qty ELSE 0 END,
+                v_consumed * CASE WHEN v_in.move_qty > 0 THEN v_in.move_value / v_in.move_qty ELSE 0 END,
                 v_uid, v_now, v_uid, v_now
             );
 
