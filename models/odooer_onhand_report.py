@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
+from odoo.tools.misc import format_date
 
 
 class OdooerOnhandReport(models.Model):
@@ -43,6 +44,15 @@ class OdooerOnhandReport(models.Model):
         for rec in self:
             rec.currency_id = (rec.company_id or self.env.company).currency_id
 
+    def action_open_at_date(self):
+        """Open the date-picker wizard."""
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'odooer.onhand.report.wizard',
+            'views': [[False, 'form']],
+            'target': 'new',
+        }
+
     def action_open_detail(self):
         """Drill-down to the per-lot FIFO valuation report for this product."""
         return {
@@ -56,14 +66,18 @@ class OdooerOnhandReport(models.Model):
 
     # ── SQL ───────────────────────────────────────────────────────────────────
 
+    def _as_of(self):
+        return self.env.context.get('search_as_of') or fields.Date.context_today(self)
+
     def _company_ids_sql(self):
         ids = self.env.companies.ids or [0]
         return ','.join(map(str, ids))
 
     def _with(self):
         company_ids = self._company_ids_sql()
+        as_of = self._as_of()
         return """
-            -- FIFO remaining per product: sum across all incoming lots
+            -- FIFO remaining per product as of {as_of}
             fifo_summary AS (
                 SELECT
                     sm.product_id,
@@ -88,38 +102,57 @@ class OdooerOnhandReport(models.Model):
                 LEFT JOIN (
                     SELECT fl.incoming_move_id, SUM(fl.quantity) AS qty
                     FROM odooer_fifo_link fl
+                    JOIN stock_move out_sm ON out_sm.id = fl.outgoing_move_id
+                    WHERE out_sm.date::date <= '{as_of}'
                     GROUP BY fl.incoming_move_id
                 ) consumed ON consumed.incoming_move_id = sm.id
-                WHERE sm.is_in     = TRUE
-                  AND sm.state     = 'done'
+                WHERE sm.is_in          = TRUE
+                  AND sm.state          = 'done'
+                  AND sm.date::date    <= '{as_of}'
                   AND COALESCE(sml_qty.qty, 0) > 0
                   AND sm.company_id IN ({company_ids})
                 GROUP BY sm.product_id, sm.company_id
             ),
 
-            -- On-hand in internal locations (excludes transit)
+            -- On-hand in internal locations as of {as_of} (reconstructed from move lines)
             onhand AS (
-                SELECT sq.product_id, sq.company_id,
-                       SUM(sq.quantity)          AS qty,
-                       SUM(sq.reserved_quantity) AS reserved_qty
-                FROM stock_quant sq
-                JOIN stock_location sl ON sl.id = sq.location_id
-                WHERE sl.usage = 'internal'
-                  AND sq.company_id IN ({company_ids})
-                GROUP BY sq.product_id, sq.company_id
+                SELECT sml.product_id,
+                       sm.company_id,
+                       SUM(
+                           CASE WHEN sl_dest.usage = 'internal' THEN sml.quantity_product_uom ELSE 0 END
+                         - CASE WHEN sl_src.usage  = 'internal' THEN sml.quantity_product_uom ELSE 0 END
+                       )  AS qty,
+                       0::numeric AS reserved_qty
+                FROM stock_move_line sml
+                JOIN stock_move sm       ON sm.id  = sml.move_id
+                JOIN stock_location sl_src  ON sl_src.id  = sml.location_id
+                JOIN stock_location sl_dest ON sl_dest.id = sml.location_dest_id
+                WHERE sml.state = 'done'
+                  AND sml.date::date <= '{as_of}'
+                  AND sm.company_id IN ({company_ids})
+                  AND (sl_src.usage = 'internal' OR sl_dest.usage = 'internal')
+                GROUP BY sml.product_id, sm.company_id
             ),
 
-            -- Qty in transit locations
+            -- Qty in transit locations as of {as_of}
             transit AS (
-                SELECT sq.product_id, sq.company_id,
-                       SUM(sq.quantity) AS qty
-                FROM stock_quant sq
-                JOIN stock_location sl ON sl.id = sq.location_id
-                WHERE sl.usage = 'transit'
-                  AND sq.company_id IN ({company_ids})
-                GROUP BY sq.product_id, sq.company_id
+                SELECT sml.product_id,
+                       sm.company_id,
+                       SUM(
+                           CASE WHEN sl_dest.usage = 'transit' THEN sml.quantity_product_uom ELSE 0 END
+                         - CASE WHEN sl_src.usage  = 'transit' THEN sml.quantity_product_uom ELSE 0 END
+                       )  AS qty
+                FROM stock_move_line sml
+                JOIN stock_move sm       ON sm.id  = sml.move_id
+                JOIN stock_location sl_src  ON sl_src.id  = sml.location_id
+                JOIN stock_location sl_dest ON sl_dest.id = sml.location_dest_id
+                WHERE sml.state = 'done'
+                  AND sml.date::date <= '{as_of}'
+                  AND sm.company_id IN ({company_ids})
+                  AND (sl_src.usage = 'transit' OR sl_dest.usage = 'transit')
+                GROUP BY sml.product_id, sm.company_id
             )
-        """.format(company_ids=company_ids)
+        """.format(company_ids=company_ids, as_of=as_of)
 
     def _select(self):
         return """
@@ -178,3 +211,23 @@ class OdooerOnhandReport(models.Model):
             select=self._select(),
             from_=self._from(),
         )
+
+
+class OdooerOnhandReportWizard(models.TransientModel):
+    """Date picker that re-opens the on-hand report with a search_as_of context."""
+    _name = 'odooer.onhand.report.wizard'
+    _description = 'Odooer On-Hand Report – Date Picker'
+
+    as_of = fields.Date(
+        string='As Of Date',
+        required=True,
+        default=lambda self: fields.Date.context_today(self),
+    )
+
+    def open_at_date(self):
+        action = self.env['ir.actions.actions']._for_xml_id(
+            'odooer_stock.action_odooer_onhand_report'
+        )
+        action['display_name'] = 'Stock On-Hand – %s' % format_date(self.env, self.as_of)
+        action['context'] = {'search_as_of': str(self.as_of)}
+        return action

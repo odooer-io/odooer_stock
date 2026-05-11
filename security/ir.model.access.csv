@@ -7,4 +7,5 @@ access_odooer_outgoing_report,odooer.outgoing.report user,model_odooer_outgoing_
 access_odooer_gp_report,odooer.gp.report user,model_odooer_gp_report,stock.group_stock_user,1,0,0,0
 access_odooer_gp_report_wizard,odooer.gp.report.wizard user,model_odooer_gp_report_wizard,stock.group_stock_user,1,1,1,1
 access_odooer_onhand_report,odooer.onhand.report user,model_odooer_onhand_report,stock.group_stock_user,1,0,0,0
+access_odooer_onhand_report_wizard,odooer.onhand.report.wizard user,model_odooer_onhand_report_wizard,stock.group_stock_user,1,1,1,1
 access_odooer_fifo_regenerate,odooer.fifo.regenerate user,model_odooer_fifo_regenerate,stock.group_stock_manager,1,1,1,1

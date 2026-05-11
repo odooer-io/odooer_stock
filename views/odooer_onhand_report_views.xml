@@ -7,6 +7,10 @@
         <field name="model">odooer.onhand.report</field>
         <field name="arch" type="xml">
             <list string="Stock On-Hand" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_open_at_date" string="Report at Date"
+                            type="object" class="btn-primary" display="always"/>
+                </header>
                 <field name="product_id"/>
                 <field name="categ_id" optional="hide"/>
                 <field name="uom_id" optional="hide"/>
@@ -73,6 +77,24 @@
                             context="{'group_by': 'company_id'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+
+    <!-- Wizard form -->
+    <record id="view_odooer_onhand_report_wizard_form" model="ir.ui.view">
+        <field name="name">odooer.onhand.report.wizard.form</field>
+        <field name="model">odooer.onhand.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Stock On-Hand at Date">
+                <group>
+                    <field name="as_of" string="As Of Date"/>
+                </group>
+                <footer>
+                    <button name="open_at_date" string="View Report"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
         </field>
     </record>
 

@@ -79,6 +79,15 @@ class OdooerValuationReport(models.Model):
             )
         """.format(as_of=as_of)
 
+    def _has_column(self, table, column):
+        """Check if a column exists (used to guard optional module columns)."""
+        self.env.cr.execute(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name=%s AND column_name=%s",
+            (table, column),
+        )
+        return bool(self.env.cr.fetchone())
+
     def _select(self):
         return """
             sm.id,
@@ -103,12 +112,17 @@ class OdooerValuationReport(models.Model):
                        ELSE 0 END                                                  AS remaining_value,
             CASE
                 WHEN sm.purchase_line_id IS NOT NULL            THEN 'purchase'
-                WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'
+                {manufacturing_case}
                 WHEN src_loc.usage = 'customer'                 THEN 'sale_return'
                 WHEN src_loc.usage = 'inventory'                THEN 'inventory'
                 ELSE 'other'
             END                                                                    AS incoming_type
-        """
+        """.format(manufacturing_case=self._manufacturing_case())
+
+    def _manufacturing_case(self):
+        if self._has_column('stock_move', 'production_id'):
+            return "WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'"
+        return ""
 
     def _from(self):
         return """
