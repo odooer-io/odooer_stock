@@ -21,6 +21,13 @@
               sequence="10"
               groups="odooer_stock.group_odooer_fifo_enabled"/>
 
+    <menuitem id="menu_odooer_outgoing_report"
+              name="Outgoing Analysis"
+              parent="menu_odooer_stock_reporting"
+              action="action_odooer_outgoing_report"
+              sequence="20"
+              groups="odooer_stock.group_odooer_fifo_enabled"/>
+
     <menuitem id="menu_odooer_fifo_regenerate"
               name="Regenerate FIFO Links"
               parent="menu_odooer_stock_reporting"

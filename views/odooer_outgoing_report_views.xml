@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── List view ─────────────────────────────────────────────────────── -->
+    <record id="odooer_outgoing_report_list" model="ir.ui.view">
+        <field name="name">odooer.outgoing.report.list</field>
+        <field name="model">odooer.outgoing.report</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" import="0" export_xlsx="1">
+                <field name="outgoing_date"/>
+                <field name="incoming_date" optional="show"/>
+                <field name="outgoing_usage"/>
+                <field name="reference" optional="show"/>
+                <field name="picking_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="partner_id" optional="show"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+                <field name="quantity" sum="Qty"/>
+                <field name="uom_id"/>
+                <field name="unit_cost"/>
+                <field name="outgoing_value" sum="Total Value"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ── Pivot view ────────────────────────────────────────────────────── -->
+    <record id="odooer_outgoing_report_pivot" model="ir.ui.view">
+        <field name="name">odooer.outgoing.report.pivot</field>
+        <field name="model">odooer.outgoing.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Outgoing Analysis" sample="1" disable_linking="1">
+                <field name="product_id" type="row"/>
+                <field name="outgoing_usage" type="col"/>
+                <field name="quantity" type="measure"/>
+                <field name="outgoing_value" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ── Search view ───────────────────────────────────────────────────── -->
+    <record id="odooer_outgoing_report_search" model="ir.ui.view">
+        <field name="name">odooer.outgoing.report.search</field>
+        <field name="model">odooer.outgoing.report</field>
+        <field name="arch" type="xml">
+            <search string="Search Outgoing">
+                <field name="product_id"/>
+                <field name="partner_id"/>
+                <field name="categ_id"/>
+                <field name="picking_id"/>
+                <field name="reference"/>
+                <separator/>
+                <filter string="Outgoing Date" name="filter_outgoing_date" date="outgoing_date"/>
+                <separator/>
+                <filter string="Incoming Date" name="filter_incoming_date" date="incoming_date"/>
+                <separator/>
+                <filter string="Sale / Delivery" name="sale"
+                        domain="[('outgoing_usage', '=', 'sale')]"/>
+                <filter string="Purchase Return" name="purchase_return"
+                        domain="[('outgoing_usage', '=', 'purchase_return')]"/>
+                <filter string="Scrap" name="scrap"
+                        domain="[('outgoing_usage', '=', 'scrap')]"/>
+                <filter string="Inventory Adjustment" name="inventory"
+                        domain="[('outgoing_usage', '=', 'inventory')]"/>
+                <filter string="Internal Transfer" name="internal"
+                        domain="[('outgoing_usage', '=', 'internal')]"/>
+                <filter string="Other" name="other"
+                        domain="[('outgoing_usage', '=', 'other')]"/>
+                <group>
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Category" name="group_categ"
+                            context="{'group_by': 'categ_id'}"/>
+                    <filter string="Usage" name="group_usage"
+                            context="{'group_by': 'outgoing_usage'}"/>
+                    <filter string="Partner" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Picking" name="group_picking"
+                            context="{'group_by': 'picking_id'}"/>
+                    <filter string="Outgoing Date" name="group_outgoing_date"
+                            context="{'group_by': 'outgoing_date'}"/>
+                    <filter string="Incoming Date" name="group_incoming_date"
+                            context="{'group_by': 'incoming_date'}"/>
+                    <filter string="Company" name="group_company"
+                            context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Window action ─────────────────────────────────────────────────── -->
+    <record id="action_odooer_outgoing_report" model="ir.actions.act_window">
+        <field name="name">Outgoing Analysis</field>
+        <field name="res_model">odooer.outgoing.report</field>
+        <field name="view_mode">list,pivot</field>
+    </record>
+
+</odoo>
