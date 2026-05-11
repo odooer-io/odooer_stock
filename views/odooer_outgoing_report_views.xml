@@ -60,6 +60,8 @@
                         domain="[('outgoing_usage', '=', 'purchase_return')]"/>
                 <filter string="Scrap" name="scrap"
                         domain="[('outgoing_usage', '=', 'scrap')]"/>
+                <filter string="Manufacturing" name="manufacturing"
+                        domain="[('outgoing_usage', '=', 'manufacturing')]"/>
                 <filter string="Inventory Adjustment" name="inventory"
                         domain="[('outgoing_usage', '=', 'inventory')]"/>
                 <filter string="Internal Transfer" name="internal"

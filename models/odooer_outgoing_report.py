@@ -35,6 +35,7 @@ class OdooerOutgoingReport(models.Model):
             ('sale', 'Sale / Delivery'),
             ('purchase_return', 'Purchase Return'),
             ('scrap', 'Scrap'),
+            ('manufacturing', 'Manufacturing'),
             ('inventory', 'Inventory Adjustment'),
             ('internal', 'Internal Transfer'),
             ('other', 'Other'),
@@ -73,6 +74,7 @@ class OdooerOutgoingReport(models.Model):
                 WHEN out_sm.scrap_id IS NOT NULL                    THEN 'scrap'
                 WHEN dest_loc.usage = 'supplier'                    THEN 'purchase_return'
                 WHEN dest_loc.usage = 'customer'                    THEN 'sale'
+                WHEN dest_loc.usage = 'production'                  THEN 'manufacturing'
                 WHEN dest_loc.usage = 'inventory'                   THEN 'inventory'
                 WHEN dest_loc.usage = 'internal'                    THEN 'internal'
                 ELSE                                                     'other'
