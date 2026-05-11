@@ -24,14 +24,14 @@ class OdooerOnhandReport(models.Model):
     uom_id      = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
 
     # ── Measures ──────────────────────────────────────────────────────────────
-    unit_cost          = fields.Float(string='FIFO Unit Cost',   digits='Product Price', readonly=True)
-    onhand_qty         = fields.Float(string='On Hand',          digits='Product Unit of Measure', readonly=True)
-    onhand_value       = fields.Float(string='On Hand Value',    digits='Product Price', readonly=True)
-    free_qty           = fields.Float(string='Free to Use',      digits='Product Unit of Measure', readonly=True)
-    transit_qty        = fields.Float(string='In Transit',       digits='Product Unit of Measure', readonly=True)
-    transit_value      = fields.Float(string='Transit Value',    digits='Product Price', readonly=True)
-    fifo_remaining_qty = fields.Float(string='FIFO Remaining Qty', digits='Product Unit of Measure', readonly=True)
-    fifo_remaining_value = fields.Float(string='FIFO Remaining Value', digits='Product Price', readonly=True)
+    unit_cost          = fields.Float(string='FIFO Unit Cost',     digits='Product Price',            readonly=True)
+    onhand_qty         = fields.Float(string='On Hand',            digits='Product Unit of Measure',  readonly=True, aggregator='sum')
+    onhand_value       = fields.Float(string='On Hand Value',      digits='Product Price',            readonly=True, aggregator='sum')
+    free_qty           = fields.Float(string='Free to Use',        digits='Product Unit of Measure',  readonly=True, aggregator='sum')
+    transit_qty        = fields.Float(string='In Transit',         digits='Product Unit of Measure',  readonly=True, aggregator='sum')
+    transit_value      = fields.Float(string='Transit Value',      digits='Product Price',            readonly=True, aggregator='sum')
+    fifo_remaining_qty = fields.Float(string='FIFO Remaining Qty', digits='Product Unit of Measure',  readonly=True, aggregator='sum')
+    fifo_remaining_value = fields.Float(string='FIFO Remaining Value', digits='Product Price',        readonly=True, aggregator='sum')
 
     currency_id = fields.Many2one(
         'res.currency', string='Currency',
