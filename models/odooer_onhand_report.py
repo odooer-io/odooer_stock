@@ -30,10 +30,8 @@ class OdooerOnhandReport(models.Model):
     free_qty           = fields.Float(string='Free to Use',        digits='Product Unit of Measure',  readonly=True, aggregator='sum')
     transit_qty        = fields.Float(string='In Transit',         digits='Product Unit of Measure',  readonly=True, aggregator='sum')
     transit_value      = fields.Float(string='Transit Value',      digits='Product Price',            readonly=True, aggregator='sum')
-    total_value        = fields.Float(string='Total Value',        digits='Product Price',            readonly=True, aggregator='sum',
-                                      help='On Hand Value + Transit Value')
-    fifo_remaining_qty = fields.Float(string='FIFO Remaining Qty', digits='Product Unit of Measure',  readonly=True, aggregator='sum')
-    fifo_remaining_value = fields.Float(string='FIFO Remaining Value', digits='Product Price',        readonly=True, aggregator='sum')
+    fifo_remaining_qty = fields.Float(string='Remaining Qty',      digits='Product Unit of Measure',  readonly=True, aggregator='sum')
+    fifo_remaining_value = fields.Float(string='Remaining Value',  digits='Product Price',            readonly=True, aggregator='sum')
 
     currency_id = fields.Many2one(
         'res.currency', string='Currency',
@@ -155,13 +153,7 @@ class OdooerOnhandReport(models.Model):
             CASE WHEN fs.fifo_remaining_qty > 0
                  THEN fs.fifo_remaining_value / fs.fifo_remaining_qty
                  ELSE 0 END
-                * COALESCE(tr.qty, 0)                                           AS transit_value,
-
-            -- Total value (on-hand + transit)
-            CASE WHEN fs.fifo_remaining_qty > 0
-                 THEN fs.fifo_remaining_value / fs.fifo_remaining_qty
-                 ELSE 0 END
-                * (COALESCE(oh.qty, 0) + COALESCE(tr.qty, 0))                  AS total_value
+                * COALESCE(tr.qty, 0)                                           AS transit_value
         """
 
     def _from(self):

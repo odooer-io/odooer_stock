@@ -16,16 +16,13 @@
                 <field name="onhand_value" string="On Hand Value" sum="Total On Hand Value"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="free_qty" string="Free to Use" sum="Total Free to Use"/>
-                <field name="transit_qty" string="In Transit" sum="Total In Transit" optional="show"/>
+                <field name="transit_qty" string="In Transit" sum="Total In Transit" optional="hide"/>
                 <field name="transit_value" string="Transit Value" sum="Total Transit Value"
                        widget="monetary" options="{'currency_field': 'currency_id'}"
-                       optional="show"/>
-                <field name="total_value" string="Total Value" sum="Grand Total Value"
-                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                <field name="fifo_remaining_qty" string="FIFO Remaining Qty" sum="Total FIFO Remaining Qty" optional="hide"/>
-                <field name="fifo_remaining_value" string="FIFO Remaining Value" sum="Total FIFO Remaining Value"
-                       widget="monetary" options="{'currency_field': 'currency_id'}"
                        optional="hide"/>
+                <field name="fifo_remaining_qty" string="Remaining Qty" sum="Total Remaining Qty"/>
+                <field name="fifo_remaining_value" string="Remaining Value" sum="Total Remaining Value"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="currency_id" column_invisible="True"/>
                 <button name="action_open_detail" string="FIFO Detail"
                         type="object" icon="fa-list"/>
@@ -46,7 +43,8 @@
                 <field name="free_qty"     type="measure"/>
                 <field name="transit_qty"  type="measure"/>
                 <field name="transit_value" type="measure"/>
-                <field name="total_value"  type="measure"/>
+                <field name="fifo_remaining_qty"   type="measure"/>
+                <field name="fifo_remaining_value" type="measure"/>
             </pivot>
         </field>
     </record>
