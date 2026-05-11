@@ -20,6 +20,8 @@
                 <field name="transit_value" string="Transit Value" sum="Total Transit Value"
                        widget="monetary" options="{'currency_field': 'currency_id'}"
                        optional="show"/>
+                <field name="total_value" string="Total Value" sum="Grand Total Value"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="fifo_remaining_qty" string="FIFO Remaining Qty" sum="Total FIFO Remaining Qty" optional="hide"/>
                 <field name="fifo_remaining_value" string="FIFO Remaining Value" sum="Total FIFO Remaining Value"
                        widget="monetary" options="{'currency_field': 'currency_id'}"
@@ -44,6 +46,7 @@
                 <field name="free_qty"     type="measure"/>
                 <field name="transit_qty"  type="measure"/>
                 <field name="transit_value" type="measure"/>
+                <field name="total_value"  type="measure"/>
             </pivot>
         </field>
     </record>
