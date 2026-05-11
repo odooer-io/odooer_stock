@@ -140,14 +140,21 @@ BEGIN
 
     INSERT INTO _odooer_fifo_remaining (move_id, product_id, remaining, move_date, move_value, move_qty)
     SELECT
-        sm.id                                               AS move_id,
+        sm.id                                                                   AS move_id,
         sm.product_id,
-        sm.quantity - COALESCE(pre_consumed.qty, 0.0)      AS remaining,
-        sm.date                                             AS move_date,
-        sm.value                                            AS move_value,
-        sm.quantity                                         AS move_qty
+        -- All quantities stored in product's default UOM (mu.factor / pu.factor converts)
+        sm.quantity * mu.factor / NULLIF(pu.factor, 0)
+            - COALESCE(pre_consumed.qty, 0.0)                                  AS remaining,
+        sm.date                                                                 AS move_date,
+        sm.value                                                                AS move_value,
+        sm.quantity * mu.factor / NULLIF(pu.factor, 0)                         AS move_qty
     FROM stock_move sm
+    JOIN product_product pp  ON pp.id  = sm.product_id
+    JOIN product_template pt ON pt.id  = pp.product_tmpl_id
+    JOIN uom_uom mu          ON mu.id  = sm.product_uom
+    JOIN uom_uom pu          ON pu.id  = pt.uom_id
     -- Subtract quantities already consumed by outgoing moves BEFORE p_from_date
+    -- (pre-existing links are already stored in product default UOM)
     LEFT JOIN (
         SELECT fl.incoming_move_id, SUM(fl.quantity) AS qty
         FROM odooer_fifo_link fl
@@ -166,8 +173,15 @@ BEGIN
 
     -- ── Step 3: Walk outgoing moves chronologically ───────────────────────
     FOR v_out IN
-        SELECT sm.id AS move_id, sm.product_id, sm.quantity AS out_qty, sm.date AS move_date
+        SELECT sm.id AS move_id, sm.product_id,
+               -- Convert outgoing qty to product's default UOM
+               sm.quantity * mu.factor / NULLIF(pu.factor, 0) AS out_qty,
+               sm.date AS move_date
         FROM stock_move sm
+        JOIN product_product pp  ON pp.id  = sm.product_id
+        JOIN product_template pt ON pt.id  = pp.product_tmpl_id
+        JOIN uom_uom mu          ON mu.id  = sm.product_uom
+        JOIN uom_uom pu          ON pu.id  = pt.uom_id
         WHERE sm.is_out      = true
           AND sm.state       = 'done'
           AND sm.company_id  = p_company_id

@@ -88,24 +88,26 @@ class OdooerValuationReport(models.Model):
             pt.uom_id,
             sp.partner_id,
             sm.picking_id,
-            sm.date::date                                           AS incoming_date,
-            sm.quantity,
+            sm.date::date                                                          AS incoming_date,
+            -- qty_prod_uom: actual done quantity converted to product's default UOM
+            sm.quantity * mu.factor / NULLIF(pu.factor, 0)                        AS quantity,
             CASE WHEN sm.quantity > 0
-                 THEN sm.value / sm.quantity
-                 ELSE 0 END                                         AS unit_cost,
-            sm.value                                                AS total_value,
-            sm.quantity - COALESCE(cbi.consumed_qty, 0)            AS remaining_qty,
-            (sm.quantity - COALESCE(cbi.consumed_qty, 0))
+                 THEN sm.value / (sm.quantity * mu.factor / NULLIF(pu.factor, 0))
+                 ELSE 0 END                                                        AS unit_cost,
+            sm.value                                                               AS total_value,
+            sm.quantity * mu.factor / NULLIF(pu.factor, 0)
+                - COALESCE(cbi.consumed_qty, 0)                                    AS remaining_qty,
+            (sm.quantity * mu.factor / NULLIF(pu.factor, 0) - COALESCE(cbi.consumed_qty, 0))
                 * CASE WHEN sm.quantity > 0
-                       THEN sm.value / sm.quantity
-                       ELSE 0 END                                   AS remaining_value,
+                       THEN sm.value / (sm.quantity * mu.factor / NULLIF(pu.factor, 0))
+                       ELSE 0 END                                                  AS remaining_value,
             CASE
                 WHEN sm.purchase_line_id IS NOT NULL            THEN 'purchase'
                 WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'
                 WHEN src_loc.usage = 'customer'                 THEN 'sale_return'
                 WHEN src_loc.usage = 'inventory'                THEN 'inventory'
                 ELSE 'other'
-            END                                                     AS incoming_type
+            END                                                                    AS incoming_type
         """
 
     def _from(self):
@@ -116,6 +118,8 @@ class OdooerValuationReport(models.Model):
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
+            JOIN uom_uom mu ON mu.id = sm.product_uom
+            JOIN uom_uom pu ON pu.id = pt.uom_id
         """
 
     def _where(self):
