@@ -172,7 +172,7 @@ class OdooerGpReport(models.Model):
         )
 
     def _group_by(self):
-        return "sol.id, so.id, sale.account_id, sale.company_id"
+        return "sol.id, so.id, sale.account_id, sale.company_id, pt.categ_id, sol.product_uom_id"
 
     @property
     def _table_query(self):
