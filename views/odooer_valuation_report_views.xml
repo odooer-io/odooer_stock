@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ── Remove stale records from the old wizard-based report ─────────── -->
+    <delete model="ir.actions.act_window" search="[('res_model','=','odooer.inventory.valuation.wizard')]"/>
+    <delete model="ir.ui.view" search="[('model','=','odooer.inventory.valuation.wizard')]"/>
+    <delete model="ir.ui.view" search="[('model','=','odooer.inventory.valuation.line')]"/>
+
     <!-- ── List view ─────────────────────────────────────────────────────── -->
     <record id="odooer_valuation_report_list" model="ir.ui.view">
         <field name="name">odooer.valuation.report.list</field>
