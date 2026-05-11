@@ -70,7 +70,7 @@ class OdooerOutgoingReport(models.Model):
             fl.unit_cost,
             fl.outgoing_value,
             CASE
-                WHEN dest_loc.scrap_location = TRUE                 THEN 'scrap'
+                WHEN out_sm.scrap_id IS NOT NULL                    THEN 'scrap'
                 WHEN dest_loc.usage = 'supplier'                    THEN 'purchase_return'
                 WHEN dest_loc.usage = 'customer'                    THEN 'sale'
                 WHEN dest_loc.usage = 'inventory'                   THEN 'inventory'
