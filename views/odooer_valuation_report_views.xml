@@ -76,7 +76,7 @@
                         domain="[('incoming_type', '=', 'inventory')]"/>
                 <filter string="Other" name="other"
                         domain="[('incoming_type', '=', 'other')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Product" name="group_product"
                             context="{'group_by': 'product_id'}"/>
                     <filter string="Category" name="group_categ"
