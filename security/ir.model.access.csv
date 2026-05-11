@@ -1,6 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_odooer_fifo_link_user,odooer.fifo.link user,model_odooer_fifo_link,stock.group_stock_user,1,0,0,0
 access_odooer_fifo_link_manager,odooer.fifo.link manager,model_odooer_fifo_link,stock.group_stock_manager,1,1,1,1
-access_odooer_inventory_valuation_wizard,odooer.inventory.valuation.wizard user,model_odooer_inventory_valuation_wizard,stock.group_stock_user,1,1,1,1
-access_odooer_inventory_valuation_line,odooer.inventory.valuation.line user,model_odooer_inventory_valuation_line,stock.group_stock_user,1,1,1,1
+access_odooer_valuation_report,odooer.valuation.report user,model_odooer_valuation_report,stock.group_stock_user,1,0,0,0
+access_odooer_valuation_report_wizard,odooer.valuation.report.wizard user,model_odooer_valuation_report_wizard,stock.group_stock_user,1,1,1,1
 access_odooer_fifo_regenerate,odooer.fifo.regenerate user,model_odooer_fifo_regenerate,stock.group_stock_manager,1,1,1,1

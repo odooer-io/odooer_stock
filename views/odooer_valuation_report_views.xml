@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── List view ─────────────────────────────────────────────────────── -->
+    <record id="odooer_valuation_report_list" model="ir.ui.view">
+        <field name="name">odooer.valuation.report.list</field>
+        <field name="model">odooer.valuation.report</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" import="0" export_xlsx="1">
+                <header>
+                    <button name="action_open_at_date"
+                            string="Report at Date"
+                            type="object"
+                            class="btn-primary"
+                            display="always"/>
+                </header>
+                <field name="incoming_date"/>
+                <field name="incoming_type"/>
+                <field name="picking_id" optional="show"/>
+                <field name="product_id"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="partner_id" optional="show"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+                <field name="remaining_qty" sum="Remaining Qty"/>
+                <field name="uom_id"/>
+                <field name="unit_cost"/>
+                <field name="remaining_value" sum="Remaining Value"/>
+                <field name="quantity" optional="hide" sum="Incoming Qty"/>
+                <field name="total_value" optional="hide" sum="Incoming Value"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ── Pivot view ────────────────────────────────────────────────────── -->
+    <record id="odooer_valuation_report_pivot" model="ir.ui.view">
+        <field name="name">odooer.valuation.report.pivot</field>
+        <field name="model">odooer.valuation.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Inventory Valuation" sample="1" disable_linking="1">
+                <field name="categ_id" type="row"/>
+                <field name="product_id" type="row"/>
+                <field name="remaining_qty" type="measure"/>
+                <field name="remaining_value" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ── Search view ───────────────────────────────────────────────────── -->
+    <record id="odooer_valuation_report_search" model="ir.ui.view">
+        <field name="name">odooer.valuation.report.search</field>
+        <field name="model">odooer.valuation.report</field>
+        <field name="arch" type="xml">
+            <search string="Search Valuation">
+                <field name="product_id"/>
+                <field name="partner_id"/>
+                <field name="categ_id"/>
+                <field name="picking_id"/>
+                <separator/>
+                <filter string="Incoming Date" name="filter_incoming_date" date="incoming_date"/>
+                <separator/>
+                <filter string="Has Remaining Stock" name="remaining"
+                        domain="[('remaining_qty', '&gt;', 0)]"/>
+                <filter string="No Cost" name="no_cost"
+                        domain="[('unit_cost', '=', 0)]"/>
+                <separator/>
+                <filter string="Purchase" name="purchase"
+                        domain="[('incoming_type', '=', 'purchase')]"/>
+                <filter string="Sale Return" name="sale_return"
+                        domain="[('incoming_type', '=', 'sale_return')]"/>
+                <filter string="Inventory Adjustment" name="inventory"
+                        domain="[('incoming_type', '=', 'inventory')]"/>
+                <filter string="Other" name="other"
+                        domain="[('incoming_type', '=', 'other')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Category" name="group_categ"
+                            context="{'group_by': 'categ_id'}"/>
+                    <filter string="Vendor" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Receipt" name="group_picking"
+                            context="{'group_by': 'picking_id'}"/>
+                    <filter string="Incoming Type" name="group_type"
+                            context="{'group_by': 'incoming_type'}"/>
+                    <filter string="Incoming Date" name="group_date"
+                            context="{'group_by': 'incoming_date'}"/>
+                    <filter string="Company" name="group_company"
+                            context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Date-picker wizard form ───────────────────────────────────────── -->
+    <record id="odooer_valuation_report_wizard_form" model="ir.ui.view">
+        <field name="name">odooer.valuation.report.wizard.form</field>
+        <field name="model">odooer.valuation.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Inventory Valuation at Date">
+                <group>
+                    <field name="as_of"/>
+                </group>
+                <footer>
+                    <button name="open_at_date" string="Open Report"
+                            type="object" class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── Window action ─────────────────────────────────────────────────── -->
+    <record id="action_odooer_valuation_report" model="ir.actions.act_window">
+        <field name="name">Inventory Valuation</field>
+        <field name="res_model">odooer.valuation.report</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="context">{'search_default_remaining': 1}</field>
+    </record>
+
+</odoo>

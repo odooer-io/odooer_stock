@@ -17,7 +17,7 @@
     <menuitem id="menu_odooer_inventory_valuation"
               name="Inventory Valuation"
               parent="menu_odooer_stock_reporting"
-              action="action_odooer_inventory_valuation"
+              action="action_odooer_valuation_report"
               sequence="10"
               groups="odooer_stock.group_odooer_fifo_enabled"/>
 
