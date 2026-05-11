@@ -59,6 +59,13 @@
                 <separator/>
                 <filter string="Order Date" name="filter_order_date" date="date"/>
                 <separator/>
+                <filter string="Goods" name="type_goods"
+                        domain="[('product_type', '=', 'consu')]"/>
+                <filter string="Service" name="type_service"
+                        domain="[('product_type', '=', 'service')]"/>
+                <filter string="Combo" name="type_combo"
+                        domain="[('product_type', '=', 'combo')]"/>
+                <separator/>
                 <filter string="Invoiced" name="invoiced"
                         domain="[('invoiced_qty', '&gt;', 0)]"/>
                 <filter string="Refunded" name="refunded"
