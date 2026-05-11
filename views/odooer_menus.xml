@@ -38,7 +38,7 @@
     <menuitem id="menu_odooer_gp_report"
               name="Gross Profit"
               parent="menu_odooer_stock_reporting"
-              action="action_odooer_gp_report_wizard"
+              action="action_odooer_gp_report"
               sequence="30"
               groups="odooer_stock.group_odooer_fifo_enabled"/>
 
