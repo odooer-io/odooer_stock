@@ -31,6 +31,7 @@ class OdooerValuationReport(models.Model):
     incoming_type = fields.Selection(
         selection=[
             ('purchase', 'Purchase'),
+            ('manufacturing', 'Manufacturing'),
             ('sale_return', 'Sale Return'),
             ('inventory', 'Inventory Adjustment'),
             ('other', 'Other'),
@@ -100,6 +101,7 @@ class OdooerValuationReport(models.Model):
                        ELSE 0 END                                   AS remaining_value,
             CASE
                 WHEN sm.purchase_line_id IS NOT NULL            THEN 'purchase'
+                WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'
                 WHEN src_loc.usage = 'customer'                 THEN 'sale_return'
                 WHEN src_loc.usage = 'inventory'                THEN 'inventory'
                 ELSE 'other'

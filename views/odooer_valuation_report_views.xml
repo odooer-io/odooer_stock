@@ -70,6 +70,8 @@
                 <separator/>
                 <filter string="Purchase" name="purchase"
                         domain="[('incoming_type', '=', 'purchase')]"/>
+                <filter string="Manufacturing" name="manufacturing"
+                        domain="[('incoming_type', '=', 'manufacturing')]"/>
                 <filter string="Sale Return" name="sale_return"
                         domain="[('incoming_type', '=', 'sale_return')]"/>
                 <filter string="Inventory Adjustment" name="inventory"
