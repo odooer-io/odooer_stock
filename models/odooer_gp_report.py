@@ -123,14 +123,16 @@ class OdooerGpReport(models.Model):
             cost AS (
                 SELECT
                     sm.sale_line_id,
-                    -- Convert moved qty to product's default UOM
-                    SUM(sm.quantity * mu.factor / NULLIF(pu.factor, 0))          AS moved_qty,
+                    -- Use quantity_product_uom from move lines (rounded, matches Odoo's FIFO)
+                    SUM(COALESCE(sml_qty.qty, 0))                                AS moved_qty,
                     COALESCE(SUM(fl_agg.fifo_value), 0)                          AS cogs
                 FROM stock_move sm
-                JOIN product_product pp  ON pp.id  = sm.product_id
-                JOIN product_template pt ON pt.id  = pp.product_tmpl_id
-                JOIN uom_uom mu          ON mu.id  = sm.product_uom
-                JOIN uom_uom pu          ON pu.id  = pt.uom_id
+                LEFT JOIN (
+                    SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
+                    FROM stock_move_line sml
+                    WHERE sml.state = 'done'
+                    GROUP BY sml.move_id
+                ) sml_qty ON sml_qty.move_id = sm.id
                 LEFT JOIN (
                     SELECT outgoing_move_id, SUM(outgoing_value) AS fifo_value
                     FROM odooer_fifo_link

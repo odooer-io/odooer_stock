@@ -89,17 +89,17 @@ class OdooerValuationReport(models.Model):
             sp.partner_id,
             sm.picking_id,
             sm.date::date                                                          AS incoming_date,
-            -- qty_prod_uom: actual done quantity converted to product's default UOM
-            sm.quantity * mu.factor / NULLIF(pu.factor, 0)                        AS quantity,
-            CASE WHEN sm.quantity > 0
-                 THEN sm.value / (sm.quantity * mu.factor / NULLIF(pu.factor, 0))
+            -- qty_prod_uom: actual done quantity from move lines (already in product's default UOM)
+            COALESCE(sml_qty.qty, 0)                                               AS quantity,
+            CASE WHEN COALESCE(sml_qty.qty, 0) > 0
+                 THEN sm.value / sml_qty.qty
                  ELSE 0 END                                                        AS unit_cost,
             sm.value                                                               AS total_value,
-            sm.quantity * mu.factor / NULLIF(pu.factor, 0)
+            COALESCE(sml_qty.qty, 0)
                 - COALESCE(cbi.consumed_qty, 0)                                    AS remaining_qty,
-            (sm.quantity * mu.factor / NULLIF(pu.factor, 0) - COALESCE(cbi.consumed_qty, 0))
-                * CASE WHEN sm.quantity > 0
-                       THEN sm.value / (sm.quantity * mu.factor / NULLIF(pu.factor, 0))
+            (COALESCE(sml_qty.qty, 0) - COALESCE(cbi.consumed_qty, 0))
+                * CASE WHEN COALESCE(sml_qty.qty, 0) > 0
+                       THEN sm.value / sml_qty.qty
                        ELSE 0 END                                                  AS remaining_value,
             CASE
                 WHEN sm.purchase_line_id IS NOT NULL            THEN 'purchase'
@@ -118,8 +118,12 @@ class OdooerValuationReport(models.Model):
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
-            JOIN uom_uom mu ON mu.id = sm.product_uom
-            JOIN uom_uom pu ON pu.id = pt.uom_id
+            LEFT JOIN (
+                SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
+                FROM stock_move_line sml
+                WHERE sml.state = 'done'
+                GROUP BY sml.move_id
+            ) sml_qty ON sml_qty.move_id = sm.id
         """
 
     def _where(self):
@@ -130,7 +134,7 @@ class OdooerValuationReport(models.Model):
             AND sm.state  = 'done'
             AND sm.date::date <= '{as_of}'
             AND sm.company_id IN ({company_ids})
-            AND sm.quantity   > 0
+            AND COALESCE(sml_qty.qty, 0) > 0
         """.format(as_of=as_of, company_ids=company_ids)
 
     @property

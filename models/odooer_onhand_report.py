@@ -69,22 +69,22 @@ class OdooerOnhandReport(models.Model):
                     sm.product_id,
                     sm.company_id,
                     SUM(
-                        sm.quantity * mu.factor / NULLIF(pu.factor, 0)
+                        COALESCE(sml_qty.qty, 0)
                         - COALESCE(consumed.qty, 0)
                     )                                                           AS fifo_remaining_qty,
                     SUM(
-                        (sm.quantity * mu.factor / NULLIF(pu.factor, 0)
-                            - COALESCE(consumed.qty, 0))
-                        * CASE WHEN sm.quantity > 0
-                               THEN sm.value
-                                    / (sm.quantity * mu.factor / NULLIF(pu.factor, 0))
+                        (COALESCE(sml_qty.qty, 0) - COALESCE(consumed.qty, 0))
+                        * CASE WHEN COALESCE(sml_qty.qty, 0) > 0
+                               THEN sm.value / sml_qty.qty
                                ELSE 0 END
                     )                                                           AS fifo_remaining_value
                 FROM stock_move sm
-                JOIN product_product pp ON pp.id = sm.product_id
-                JOIN product_template pt ON pt.id = pp.product_tmpl_id
-                JOIN uom_uom mu          ON mu.id = sm.product_uom
-                JOIN uom_uom pu          ON pu.id = pt.uom_id
+                LEFT JOIN (
+                    SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
+                    FROM stock_move_line sml
+                    WHERE sml.state = 'done'
+                    GROUP BY sml.move_id
+                ) sml_qty ON sml_qty.move_id = sm.id
                 LEFT JOIN (
                     SELECT fl.incoming_move_id, SUM(fl.quantity) AS qty
                     FROM odooer_fifo_link fl
@@ -92,7 +92,7 @@ class OdooerOnhandReport(models.Model):
                 ) consumed ON consumed.incoming_move_id = sm.id
                 WHERE sm.is_in     = TRUE
                   AND sm.state     = 'done'
-                  AND sm.quantity  > 0
+                  AND COALESCE(sml_qty.qty, 0) > 0
                   AND sm.company_id IN ({company_ids})
                 GROUP BY sm.product_id, sm.company_id
             ),

@@ -142,17 +142,20 @@ BEGIN
     SELECT
         sm.id                                                                   AS move_id,
         sm.product_id,
-        -- All quantities stored in product's default UOM (mu.factor / pu.factor converts)
-        sm.quantity * mu.factor / NULLIF(pu.factor, 0)
+        -- Use quantity_product_uom from move lines (already in product's default UOM,
+        -- rounded to UOM precision — matches Odoo's own FIFO stack calculation)
+        COALESCE(sml_in.qty, 0)
             - COALESCE(pre_consumed.qty, 0.0)                                  AS remaining,
         sm.date                                                                 AS move_date,
         sm.value                                                                AS move_value,
-        sm.quantity * mu.factor / NULLIF(pu.factor, 0)                         AS move_qty
+        COALESCE(sml_in.qty, 0)                                                AS move_qty
     FROM stock_move sm
-    JOIN product_product pp  ON pp.id  = sm.product_id
-    JOIN product_template pt ON pt.id  = pp.product_tmpl_id
-    JOIN uom_uom mu          ON mu.id  = sm.product_uom
-    JOIN uom_uom pu          ON pu.id  = pt.uom_id
+    LEFT JOIN (
+        SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
+        FROM stock_move_line sml
+        WHERE sml.state = 'done'
+        GROUP BY sml.move_id
+    ) sml_in ON sml_in.move_id = sm.id
     -- Subtract quantities already consumed by outgoing moves BEFORE p_from_date
     -- (pre-existing links are already stored in product default UOM)
     LEFT JOIN (
@@ -167,25 +170,27 @@ BEGIN
     WHERE sm.is_in      = true
       AND sm.state      = 'done'
       AND sm.company_id = p_company_id
-      AND sm.quantity   > 0;
+      AND COALESCE(sml_in.qty, 0) > 0;
 
     CREATE INDEX ON _odooer_fifo_remaining (product_id, move_date, move_id);
 
     -- ── Step 3: Walk outgoing moves chronologically ───────────────────────
     FOR v_out IN
         SELECT sm.id AS move_id, sm.product_id,
-               -- Convert outgoing qty to product's default UOM
-               sm.quantity * mu.factor / NULLIF(pu.factor, 0) AS out_qty,
+               -- Use quantity_product_uom from move lines (rounded, matches Odoo's FIFO)
+               COALESCE(sml_out.qty, 0) AS out_qty,
                sm.date AS move_date
         FROM stock_move sm
-        JOIN product_product pp  ON pp.id  = sm.product_id
-        JOIN product_template pt ON pt.id  = pp.product_tmpl_id
-        JOIN uom_uom mu          ON mu.id  = sm.product_uom
-        JOIN uom_uom pu          ON pu.id  = pt.uom_id
+        LEFT JOIN (
+            SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
+            FROM stock_move_line sml
+            WHERE sml.state = 'done'
+            GROUP BY sml.move_id
+        ) sml_out ON sml_out.move_id = sm.id
         WHERE sm.is_out      = true
           AND sm.state       = 'done'
           AND sm.company_id  = p_company_id
-          AND sm.quantity    > 0
+          AND COALESCE(sml_out.qty, 0) > 0
           AND (p_from_date IS NULL OR sm.date::date >= p_from_date)
         ORDER BY sm.date ASC, sm.id ASC
     LOOP
