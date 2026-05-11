@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- List View -->
+    <record id="view_odooer_onhand_report_list" model="ir.ui.view">
+        <field name="name">odooer.onhand.report.list</field>
+        <field name="model">odooer.onhand.report</field>
+        <field name="arch" type="xml">
+            <list string="Stock On-Hand" create="false" edit="false" delete="false">
+                <field name="product_id"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="uom_id" optional="hide"/>
+                <field name="unit_cost" string="FIFO Unit Cost"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="onhand_qty" string="On Hand"/>
+                <field name="onhand_value" string="On Hand Value"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="free_qty" string="Free to Use"/>
+                <field name="transit_qty" string="In Transit" optional="show"/>
+                <field name="transit_value" string="Transit Value"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"
+                       optional="show"/>
+                <field name="fifo_remaining_qty" string="FIFO Remaining Qty" optional="hide"/>
+                <field name="fifo_remaining_value" string="FIFO Remaining Value"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"
+                       optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <button name="action_open_detail" string="FIFO Detail"
+                        type="object" icon="fa-list"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Pivot View -->
+    <record id="view_odooer_onhand_report_pivot" model="ir.ui.view">
+        <field name="name">odooer.onhand.report.pivot</field>
+        <field name="model">odooer.onhand.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock On-Hand" disable_linking="True">
+                <field name="categ_id" type="row"/>
+                <field name="product_id" type="row"/>
+                <field name="onhand_qty"   type="measure"/>
+                <field name="onhand_value" type="measure"/>
+                <field name="free_qty"     type="measure"/>
+                <field name="transit_qty"  type="measure"/>
+                <field name="transit_value" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_odooer_onhand_report_search" model="ir.ui.view">
+        <field name="name">odooer.onhand.report.search</field>
+        <field name="model">odooer.onhand.report</field>
+        <field name="arch" type="xml">
+            <search string="Stock On-Hand">
+                <field name="product_id"/>
+                <field name="categ_id"/>
+                <separator/>
+                <filter string="Has Transit Stock" name="has_transit"
+                        domain="[('transit_qty', '>', 0)]"/>
+                <filter string="Out of Stock" name="out_of_stock"
+                        domain="[('onhand_qty', '&lt;=', 0)]"/>
+                <filter string="Low / No Free Stock" name="low_free"
+                        domain="[('free_qty', '&lt;=', 0)]"/>
+                <group>
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Category" name="group_categ"
+                            context="{'group_by': 'categ_id'}"/>
+                    <filter string="Company" name="group_company"
+                            context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Window Action -->
+    <record id="action_odooer_onhand_report" model="ir.actions.act_window">
+        <field name="name">Stock On-Hand</field>
+        <field name="res_model">odooer.onhand.report</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="context">{}</field>
+    </record>
+
+</odoo>

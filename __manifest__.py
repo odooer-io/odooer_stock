@@ -36,6 +36,7 @@ Key features:
         'views/res_config_settings_views.xml',
         'views/odooer_valuation_report_views.xml',
         'views/odooer_outgoing_report_views.xml',
+        'views/odooer_onhand_report_views.xml',
         'views/odooer_gp_report_views.xml',
         'views/odooer_fifo_regenerate_views.xml',
         'views/odooer_menus.xml',
