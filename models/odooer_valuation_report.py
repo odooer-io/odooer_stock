@@ -28,8 +28,9 @@ class OdooerValuationReport(models.Model):
             ref = rec.reference or ''
             rec.display_name = f"{ref} – {product}" if ref else f"{product} ({date})"
 
-    def get_formview_action(self, access_uid=None):
-        """Open the detail form as a dialog instead of navigating to a new route."""
+    def action_open_detail(self):
+        """Open this record's form view as a dialog popup."""
+        self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
             'res_model': self._name,

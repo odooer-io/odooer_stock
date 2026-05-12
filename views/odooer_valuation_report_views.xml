@@ -67,14 +67,19 @@
         <field name="name">odooer.valuation.report.list</field>
         <field name="model">odooer.valuation.report</field>
         <field name="arch" type="xml">
-            <list create="0" edit="0" import="0" export_xlsx="1">
+            <list create="0" edit="0" import="0" export_xlsx="1" open_form_view="0">
                 <header>
                     <button name="action_open_at_date"
                             string="Report at Date"
                             type="object"
                             class="btn-primary"
                             display="always"/>
-                </header>                <field name="incoming_date"/>
+                </header>
+                <button name="action_open_detail"
+                        type="object"
+                        icon="fa-search-plus"
+                        title="View Details"
+                        class="btn-sm btn-light"/>                <field name="incoming_date"/>
                 <field name="incoming_type"/>
                 <field name="reference" optional="show"/>
                 <!-- picking_id and production_id kept for filtering/grouping, hidden from list -->
@@ -185,7 +190,7 @@
     <record id="action_odooer_valuation_report" model="ir.actions.act_window">
         <field name="name">Inventory Valuation</field>
         <field name="res_model">odooer.valuation.report</field>
-        <field name="view_mode">list,form,pivot</field>
+        <field name="view_mode">list,pivot</field>
         <field name="context">{'search_default_remaining': 1}</field>
     </record>
 
