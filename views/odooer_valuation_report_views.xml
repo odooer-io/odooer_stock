@@ -67,7 +67,7 @@
         <field name="name">odooer.valuation.report.list</field>
         <field name="model">odooer.valuation.report</field>
         <field name="arch" type="xml">
-            <list create="0" edit="0" import="0" export_xlsx="1" open_form_view="0">
+            <list create="0" edit="0" import="0" export_xlsx="1">
                 <header>
                     <button name="action_open_at_date"
                             string="Report at Date"
@@ -75,11 +75,7 @@
                             class="btn-primary"
                             display="always"/>
                 </header>
-                <button name="action_open_detail"
-                        type="object"
-                        icon="fa-search-plus"
-                        title="View Details"
-                        class="btn-sm btn-light"/>                <field name="incoming_date"/>
+                <field name="incoming_date"/>
                 <field name="incoming_type"/>
                 <field name="reference" optional="show"/>
                 <!-- picking_id and production_id kept for filtering/grouping, hidden from list -->
@@ -96,6 +92,8 @@
                 <field name="remaining_value" sum="Remaining Value"/>
                 <field name="quantity" optional="hide" sum="Incoming Qty"/>
                 <field name="total_value" optional="hide" sum="Incoming Value"/>
+                <button name="action_open_detail" type="object"
+                        icon="fa-search-plus" title="View Details"/>
             </list>
         </field>
     </record>
