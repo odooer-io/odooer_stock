@@ -29,12 +29,12 @@ class OdooerValuationReport(models.Model):
             rec.display_name = f"{ref} – {product}" if ref else f"{product} ({date})"
 
     def action_open_detail(self):
-        """Open this record's form view as a dialog popup."""
+        """Open the underlying stock.move using Odoo's generic form view."""
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
+            'res_model': 'stock.move',
+            'res_id': self.move_id.id,
             'views': [[False, 'form']],
             'target': 'new',
         }
