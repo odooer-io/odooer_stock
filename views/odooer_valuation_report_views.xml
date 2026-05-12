@@ -20,8 +20,10 @@
                             display="always"/>
                 </header>                <field name="incoming_date"/>
                 <field name="incoming_type"/>
-                <field name="picking_id" optional="show"/>
-                <field name="production_id" optional="show"/>
+                <field name="reference" optional="show"/>
+                <!-- picking_id and production_id kept for filtering/grouping, hidden from list -->
+                <field name="picking_id" optional="hide" column_invisible="1"/>
+                <field name="production_id" optional="hide" column_invisible="1"/>
                 <field name="product_id"/>
                 <field name="categ_id" optional="hide"/>
                 <field name="partner_id" optional="show"/>

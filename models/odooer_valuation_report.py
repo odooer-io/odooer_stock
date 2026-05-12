@@ -28,6 +28,7 @@ class OdooerValuationReport(models.Model):
     partner_id = fields.Many2one('res.partner', string='Vendor', readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Receipt', readonly=True)
     production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
+    reference = fields.Char(string='Reference', readonly=True)
     incoming_date = fields.Date(string='Incoming Date', readonly=True)
     incoming_type = fields.Selection(
         selection=[
@@ -99,6 +100,7 @@ class OdooerValuationReport(models.Model):
             sp.partner_id,
             sm.picking_id,
             {production_id_sql}
+            COALESCE(sp.name, {mo_name_sql})                                       AS reference,
             sm.date::date                                                          AS incoming_date,
             -- qty_prod_uom: actual done quantity from move lines (already in product's default UOM)
             COALESCE(sml_qty.qty, 0)                                               AS quantity,
@@ -122,6 +124,7 @@ class OdooerValuationReport(models.Model):
         """.format(
             manufacturing_case=self._manufacturing_case(),
             production_id_sql=self._production_id_sql(),
+            mo_name_sql=self._mo_name_sql(),
         )
 
     def _manufacturing_case(self):
@@ -134,13 +137,24 @@ class OdooerValuationReport(models.Model):
             return "sm.production_id,"
         return "NULL::integer AS production_id,"
 
+    def _mo_name_sql(self):
+        """SQL expression for MO name; NULL literal when MRP not installed."""
+        if self._has_column('stock_move', 'production_id'):
+            return "mo.name"
+        return "NULL::varchar"
+
     def _from(self):
+        mo_join = (
+            "LEFT JOIN mrp_production mo ON mo.id = sm.production_id"
+            if self._has_column('stock_move', 'production_id') else ""
+        )
         return """
             stock_move sm
             LEFT JOIN consumed_by_incoming cbi ON cbi.incoming_move_id = sm.id
             INNER JOIN product_product pp ON pp.id = sm.product_id
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
+            {mo_join}
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
             LEFT JOIN (
                 SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
@@ -148,7 +162,7 @@ class OdooerValuationReport(models.Model):
                 WHERE sml.state = 'done'
                 GROUP BY sml.move_id
             ) sml_qty ON sml_qty.move_id = sm.id
-        """
+        """.format(mo_join=mo_join)
 
     def _where(self):
         as_of = self._as_of()
