@@ -50,6 +50,16 @@ class OdooerValuationReport(models.Model):
     remaining_qty = fields.Float(string='Remaining Qty', digits='Product Unit of Measure', readonly=True)
     remaining_value = fields.Float(string='Remaining Value', digits='Product Price', readonly=True)
 
+    # ── Detail relations (used in form popup) ─────────────────────────────────
+    # id = sm.id, so move_id and id are the same value — exposed as Many2one for clickability
+    move_id = fields.Many2one('stock.move', string='Stock Move', readonly=True)
+    value_source_ids = fields.One2many(
+        'odooer.valuation.source', 'incoming_move_id',
+        string='Value Sources', readonly=True)
+    outgoing_ids = fields.One2many(
+        'odooer.outgoing.detail', 'incoming_move_id',
+        string='Outgoing Moves', readonly=True)
+
     def action_open_at_date(self):
         """Open the date-picker wizard."""
         return {
@@ -94,6 +104,7 @@ class OdooerValuationReport(models.Model):
     def _select(self):
         return """
             sm.id,
+            sm.id                                                              AS move_id,
             sm.company_id,
             sm.product_id,
             pt.categ_id,
