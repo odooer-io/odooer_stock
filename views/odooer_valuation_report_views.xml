@@ -38,7 +38,7 @@
                                 <field name="reference"/>
                                 <field name="account_move_id" optional="show"/>
                                 <field name="landed_cost_id" optional="show"/>
-                                <field name="value"/>
+                                <field name="value" sum="Total Value"/>
                             </list>
                         </field>
                     </page>
