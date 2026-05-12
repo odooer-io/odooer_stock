@@ -50,6 +50,7 @@ class OdooerValuationReport(models.Model):
     production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
     reference = fields.Char(string='Reference', readonly=True)
     location_dest_id = fields.Many2one('stock.location', string='Location', readonly=True)
+    stock_valuation_account_id = fields.Many2one('account.account', string='Stock Account', readonly=True)
     incoming_date = fields.Date(string='Incoming Date', readonly=True)
     incoming_type = fields.Selection(
         selection=[
@@ -135,6 +136,17 @@ class OdooerValuationReport(models.Model):
             COALESCE(sp.name, {mo_name_sql})                                       AS reference,
             sm.location_dest_id,
             sm.date::date                                                          AS incoming_date,
+            -- Resolve stock valuation account from category (company_dependent jsonb), fallback to ir_default
+            COALESCE(
+                (pc.property_stock_valuation_account_id->>(sm.company_id::text))::integer,
+                (SELECT (idef.json_value)::integer
+                 FROM ir_default idef
+                 JOIN ir_model_fields imf ON imf.id = idef.field_id
+                 WHERE imf.model = 'product.category'
+                   AND imf.name = 'property_stock_valuation_account_id'
+                   AND idef.company_id = sm.company_id
+                 LIMIT 1)
+            )                                                                      AS stock_valuation_account_id,
             -- qty_prod_uom: actual done quantity from move lines (already in product's default UOM)
             COALESCE(sml_qty.qty, 0)                                               AS quantity,
             CASE WHEN COALESCE(sml_qty.qty, 0) > 0
@@ -190,6 +202,7 @@ class OdooerValuationReport(models.Model):
             LEFT JOIN consumed_by_incoming cbi ON cbi.incoming_move_id = sm.id
             INNER JOIN product_product pp ON pp.id = sm.product_id
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            LEFT JOIN product_category pc ON pc.id = pt.categ_id
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
             {mo_join}
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
