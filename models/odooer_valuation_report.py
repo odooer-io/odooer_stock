@@ -19,6 +19,14 @@ class OdooerValuationReport(models.Model):
     _description = 'Odooer Inventory Valuation Report'
     _auto = False
     _order = 'incoming_date desc, id'
+    _rec_name = 'reference'
+
+    def _compute_display_name(self):
+        for rec in self:
+            product = rec.product_id.display_name or ''
+            date = str(rec.incoming_date) if rec.incoming_date else ''
+            ref = rec.reference or ''
+            rec.display_name = f"{ref} – {product}" if ref else f"{product} ({date})"
 
     # ── Dimensions ────────────────────────────────────────────────────────────
     company_id = fields.Many2one('res.company', string='Company', readonly=True)
