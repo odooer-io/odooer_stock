@@ -28,6 +28,16 @@ class OdooerValuationReport(models.Model):
             ref = rec.reference or ''
             rec.display_name = f"{ref} – {product}" if ref else f"{product} ({date})"
 
+    def get_formview_action(self, access_uid=None):
+        """Open the detail form as a dialog instead of navigating to a new route."""
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'views': [[False, 'form']],
+            'target': 'new',
+        }
+
     # ── Dimensions ────────────────────────────────────────────────────────────
     company_id = fields.Many2one('res.company', string='Company', readonly=True)
     product_id = fields.Many2one('product.product', string='Product', readonly=True)
