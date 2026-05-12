@@ -27,6 +27,7 @@ class OdooerValuationReport(models.Model):
     uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Vendor', readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Receipt', readonly=True)
+    production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
     incoming_date = fields.Date(string='Incoming Date', readonly=True)
     incoming_type = fields.Selection(
         selection=[
@@ -97,6 +98,7 @@ class OdooerValuationReport(models.Model):
             pt.uom_id,
             sp.partner_id,
             sm.picking_id,
+            {production_id_sql}
             sm.date::date                                                          AS incoming_date,
             -- qty_prod_uom: actual done quantity from move lines (already in product's default UOM)
             COALESCE(sml_qty.qty, 0)                                               AS quantity,
@@ -117,12 +119,20 @@ class OdooerValuationReport(models.Model):
                 WHEN src_loc.usage = 'inventory'                THEN 'inventory'
                 ELSE 'other'
             END                                                                    AS incoming_type
-        """.format(manufacturing_case=self._manufacturing_case())
+        """.format(
+            manufacturing_case=self._manufacturing_case(),
+            production_id_sql=self._production_id_sql(),
+        )
 
     def _manufacturing_case(self):
         if self._has_column('stock_move', 'production_id'):
             return "WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'"
         return ""
+
+    def _production_id_sql(self):
+        if self._has_column('stock_move', 'production_id'):
+            return "sm.production_id,"
+        return "NULL::integer AS production_id,"
 
     def _from(self):
         return """
