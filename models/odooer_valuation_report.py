@@ -131,7 +131,10 @@ class OdooerValuationReport(models.Model):
 
     def _manufacturing_case(self):
         if self._has_column('stock_move', 'production_id'):
-            return "WHEN sm.production_id IS NOT NULL               THEN 'manufacturing'"
+            return """
+                WHEN sm.production_id IS NOT NULL      THEN 'manufacturing'
+                WHEN sm.unbuild_id IS NOT NULL         THEN 'manufacturing'
+                WHEN sm.consume_unbuild_id IS NOT NULL THEN 'manufacturing'"""
         return ""
 
     def _production_id_sql(self):
@@ -140,16 +143,17 @@ class OdooerValuationReport(models.Model):
         return "NULL::integer AS production_id,"
 
     def _mo_name_sql(self):
-        """SQL expression for MO name; NULL literal when MRP not installed."""
+        """SQL expression for MO/unbuild name; NULL literal when MRP not installed."""
         if self._has_column('stock_move', 'production_id'):
-            return "mo.name"
+            return "COALESCE(mo.name, ub.name)"
         return "NULL::varchar"
 
     def _from(self):
+        mrp_installed = self._has_column('stock_move', 'production_id')
         mo_join = (
-            "LEFT JOIN mrp_production mo ON mo.id = sm.production_id"
-            if self._has_column('stock_move', 'production_id') else ""
-        )
+            "LEFT JOIN mrp_production mo ON mo.id = sm.production_id\n"
+            "            LEFT JOIN mrp_unbuild ub ON ub.id = COALESCE(sm.unbuild_id, sm.consume_unbuild_id)"
+        ) if mrp_installed else ""
         return """
             stock_move sm
             LEFT JOIN consumed_by_incoming cbi ON cbi.incoming_move_id = sm.id
