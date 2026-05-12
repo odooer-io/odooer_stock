@@ -89,10 +89,7 @@ class OdooerValuationSource(models.Model):
                     am.name                          AS reference,
                     am.id                            AS account_move_id,
                     NULL::integer                    AS landed_cost_id,
-                    SUM(CASE WHEN am.move_type = 'in_invoice'
-                             THEN  aml.price_subtotal / NULLIF(aml.currency_rate, 1)
-                             ELSE -aml.price_subtotal / NULLIF(aml.currency_rate, 1)
-                        END)                         AS value,
+                    SUM(aml.balance)                         AS value,
                     comp.currency_id                 AS currency_id,
                     am.invoice_date::timestamp       AS date
                 FROM stock_move sm
@@ -103,7 +100,7 @@ class OdooerValuationSource(models.Model):
                     AND am.move_type IN ('in_invoice', 'in_refund')
                 JOIN res_company comp ON comp.id = sm.company_id
                 WHERE sm.is_in = TRUE
-                GROUP BY am.id, am.name, am.move_type, am.invoice_date, sm.id, comp.currency_id
+                GROUP BY am.id, am.name, am.invoice_date, sm.id, comp.currency_id
             """)
 
         # ── 3. Landed costs ───────────────────────────────────────────────────
