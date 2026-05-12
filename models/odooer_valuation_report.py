@@ -29,6 +29,7 @@ class OdooerValuationReport(models.Model):
     picking_id = fields.Many2one('stock.picking', string='Receipt', readonly=True)
     production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
     reference = fields.Char(string='Reference', readonly=True)
+    location_dest_id = fields.Many2one('stock.location', string='Location', readonly=True)
     incoming_date = fields.Date(string='Incoming Date', readonly=True)
     incoming_type = fields.Selection(
         selection=[
@@ -101,6 +102,7 @@ class OdooerValuationReport(models.Model):
             sm.picking_id,
             {production_id_sql}
             COALESCE(sp.name, {mo_name_sql})                                       AS reference,
+            sm.location_dest_id,
             sm.date::date                                                          AS incoming_date,
             -- qty_prod_uom: actual done quantity from move lines (already in product's default UOM)
             COALESCE(sml_qty.qty, 0)                                               AS quantity,

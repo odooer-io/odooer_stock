@@ -24,6 +24,7 @@
                 <!-- picking_id and production_id kept for filtering/grouping, hidden from list -->
                 <field name="picking_id" optional="hide" column_invisible="1"/>
                 <field name="production_id" optional="hide" column_invisible="1"/>
+                <field name="location_dest_id" optional="hide"/>
                 <field name="product_id"/>
                 <field name="categ_id" optional="hide"/>
                 <field name="partner_id" optional="show"/>
@@ -61,7 +62,9 @@
                 <field name="product_id"/>
                 <field name="partner_id"/>
                 <field name="categ_id"/>
-                <field name="picking_id"/>
+                <field name="reference" string="Reference"
+                       filter_domain="['|', ('picking_id.name', 'ilike', self), ('production_id.name', 'ilike', self)]"/>
+                <field name="location_dest_id"/>
                 <separator/>
                 <filter string="Incoming Date" name="filter_incoming_date" date="incoming_date"/>
                 <separator/>
@@ -89,6 +92,8 @@
                             context="{'group_by': 'partner_id'}"/>
                     <filter string="Receipt" name="group_picking"
                             context="{'group_by': 'picking_id'}"/>
+                    <filter string="Location" name="group_location"
+                            context="{'group_by': 'location_dest_id'}"/>
                     <filter string="Incoming Type" name="group_type"
                             context="{'group_by': 'incoming_type'}"/>
                     <filter string="Incoming Date" name="group_date"
