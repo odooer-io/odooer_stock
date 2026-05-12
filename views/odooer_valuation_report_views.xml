@@ -185,7 +185,7 @@
     <record id="action_odooer_valuation_report" model="ir.actions.act_window">
         <field name="name">Inventory Valuation</field>
         <field name="res_model">odooer.valuation.report</field>
-        <field name="view_mode">list,pivot</field>
+        <field name="view_mode">list,form,pivot</field>
         <field name="context">{'search_default_remaining': 1}</field>
     </record>
 
