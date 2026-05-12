@@ -6,62 +6,6 @@
     <delete model="ir.ui.view" search="[('model','=','odooer.inventory.valuation.wizard')]"/>
     <delete model="ir.ui.view" search="[('model','=','odooer.inventory.valuation.line')]"/>
 
-    <!-- ── Form view (popup on row click) ───────────────────────────────── -->
-    <record id="odooer_valuation_report_form" model="ir.ui.view">
-        <field name="name">odooer.valuation.report.form</field>
-        <field name="model">odooer.valuation.report</field>
-        <field name="arch" type="xml">
-            <form create="0" edit="0" string="Incoming Move Detail">
-                <group>
-                    <group string="Move">
-                        <field name="incoming_date"/>
-                        <field name="incoming_type"/>
-                        <!-- Reference: show whichever Many2one is populated -->
-                        <field name="picking_id" invisible="not picking_id"/>
-                        <field name="production_id" invisible="not production_id"/>
-                        <field name="move_id"/>
-                    </group>
-                    <group string="Valuation">
-                        <field name="quantity"/>
-                        <field name="uom_id"/>
-                        <field name="unit_cost"/>
-                        <field name="total_value"/>
-                        <field name="remaining_qty"/>
-                        <field name="remaining_value"/>
-                    </group>
-                </group>
-                <notebook>
-                    <page string="Value Sources" name="value_sources">
-                        <field name="value_source_ids" readonly="1">
-                            <list create="0" edit="0" decoration-info="source_type == 'landed_cost'">
-                                <field name="date"/>
-                                <field name="source_type" widget="badge"/>
-                                <field name="reference"/>
-                                <field name="account_move_id" optional="show"/>
-                                <field name="landed_cost_id" optional="show"/>
-                                <field name="value"/>
-                            </list>
-                        </field>
-                    </page>
-                    <page string="Outgoing" name="outgoing">
-                        <field name="outgoing_ids" readonly="1">
-                            <list create="0" edit="0">
-                                <field name="date"/>
-                                <field name="reference"/>
-                                <field name="picking_id" optional="show"/>
-                                <field name="outgoing_move_id" optional="show"/>
-                                <field name="partner_id"/>
-                                <field name="quantity"/>
-                                <field name="unit_cost"/>
-                                <field name="value" sum="Total Value"/>
-                            </list>
-                        </field>
-                    </page>
-                </notebook>
-            </form>
-        </field>
-    </record>
-
     <!-- ── List view ─────────────────────────────────────────────────────── -->
     <record id="odooer_valuation_report_list" model="ir.ui.view">
         <field name="name">odooer.valuation.report.list</field>
