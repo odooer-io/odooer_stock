@@ -1,6 +1,259 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ── Form view (detail dialog) ──────────────────────────────────────── -->
+    <record id="odooer_gp_report_form" model="ir.ui.view">
+        <field name="name">odooer.gp.report.form</field>
+        <field name="model">odooer.gp.report</field>
+        <field name="arch" type="xml">
+            <form string="Sale Line Detail" create="0" edit="0">
+                <sheet>
+                    <!-- Header KPIs -->
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Order">
+                            <field name="order_id" readonly="1"/>
+                            <field name="date" string="Order Date" readonly="1"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="account_id" readonly="1"/>
+                        </group>
+                        <group string="Product">
+                            <field name="product_id" readonly="1"/>
+                            <field name="uom_id" string="Unit" readonly="1"/>
+                            <field name="ordered_qty" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Quantities">
+                            <field name="invoiced_qty" readonly="1"/>
+                            <field name="moved_qty" string="Delivered Qty" readonly="1"/>
+                        </group>
+                        <group string="Financials">
+                            <field name="invoiced_total" string="Revenue" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="cogs" string="COGS" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="gp" string="Gross Profit" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="margin_pct" string="Margin %" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+
+                    <!-- Tabs -->
+                    <notebook>
+                        <!-- Invoices tab -->
+                        <page string="Invoices" name="invoices">
+                            <field name="invoice_ids" readonly="1" nolabel="1">
+                                <list create="0" delete="0" editable="0">
+                                    <field name="invoice_date" string="Date"/>
+                                    <field name="name" string="Invoice No"/>
+                                    <field name="move_type" string="Type"
+                                           widget="badge"
+                                           decoration-success="move_type == 'out_invoice'"
+                                           decoration-warning="move_type == 'out_refund'"/>
+                                    <field name="state" string="Status"
+                                           widget="badge"
+                                           decoration-success="state == 'posted'"
+                                           decoration-muted="state == 'draft'"/>
+                                    <field name="payment_state" string="Payment"
+                                           widget="badge"
+                                           decoration-success="payment_state == 'paid'"
+                                           decoration-warning="payment_state == 'partial'"
+                                           decoration-danger="payment_state == 'not_paid'"/>
+                                    <field name="amount_total" string="Total"
+                                           widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <!-- Deliveries tab -->
+                        <page string="Deliveries" name="deliveries">
+                            <field name="delivery_move_ids" readonly="1" nolabel="1">
+                                <list create="0" delete="0" editable="0">
+                                    <field name="date" string="Date"/>
+                                    <field name="reference" string="No"/>
+                                    <field name="location_id" string="Source Location"/>
+                                    <field name="location_dest_id" string="Destination"/>
+                                    <field name="quantity" string="Qty"/>
+                                    <field name="state" string="Status"
+                                           widget="badge"
+                                           decoration-success="state == 'done'"
+                                           decoration-warning="state == 'assigned'"
+                                           decoration-muted="state == 'draft'"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <!-- FIFO Incoming Source tab -->
+                        <page string="Incoming Source" name="fifo_source">
+                            <field name="fifo_link_ids" readonly="1" nolabel="1">
+                                <list create="0" delete="0" editable="0">
+                                    <field name="incoming_move_id" string="Incoming Move"/>
+                                    <field name="incoming_date" string="Receipt Date"/>
+                                    <field name="quantity" string="Qty"/>
+                                    <field name="unit_cost" string="Unit Cost"
+                                           widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="outgoing_value" string="Value"
+                                           widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"
+                                           sum="Total"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── List view ──────────────────────────────────────────────────────── -->
+    <record id="odooer_gp_report_list" model="ir.ui.view">
+        <field name="name">odooer.gp.report.list</field>
+        <field name="model">odooer.gp.report</field>
+        <field name="arch" type="xml">
+            <list create="0" import="0">
+                <header>
+                    <button name="action_gp_at_date" string="Report at Date"
+                            type="object" class="btn-primary ms-1" display="always"/>
+                </header>
+                <field name="date"/>
+                <field name="name"/>
+                <field name="company_id" optional="hide"/>
+                <field name="partner_id" optional="show"/>
+                <field name="product_id" optional="show"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="account_id" optional="show"/>
+                <field name="invoiced_qty" sum="Invoiced Qty"/>
+                <field name="invoiced_total" sum="Total Revenue" widget="monetary"
+                       options="{'currency_field': 'currency_id'}"/>
+                <field name="moved_qty" sum="Delivered Qty" optional="hide"/>
+                <field name="cogs" sum="Total COGS" widget="monetary"
+                       options="{'currency_field': 'currency_id'}"/>
+                <field name="gp" sum="Total GP" widget="monetary"
+                       options="{'currency_field': 'currency_id'}"/>
+                <field name="currency_id" column_invisible="1"/>
+                <button name="action_open_detail" type="object"
+                        icon="fa-search-plus" title="View Detail"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ── Pivot view ─────────────────────────────────────────────────────── -->
+    <record id="odooer_gp_report_pivot" model="ir.ui.view">
+        <field name="name">odooer.gp.report.pivot</field>
+        <field name="model">odooer.gp.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Gross Profit" sample="1">
+                <field name="date" type="row" interval="month"/>
+                <field name="invoiced_total" type="measure" operator="sum"/>
+                <field name="cogs" type="measure" operator="sum"/>
+                <field name="gp" type="measure" operator="sum"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ── Search view ────────────────────────────────────────────────────── -->
+    <record id="odooer_gp_report_search" model="ir.ui.view">
+        <field name="name">odooer.gp.report.search</field>
+        <field name="model">odooer.gp.report</field>
+        <field name="arch" type="xml">
+            <search string="Search Gross Profit">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="account_id"/>
+                <separator/>
+                <filter string="Order Date" name="filter_order_date" date="date"/>
+                <separator/>
+                <filter string="Goods" name="type_goods"
+                        domain="[('product_type', '=', 'consu')]"/>
+                <filter string="Service" name="type_service"
+                        domain="[('product_type', '=', 'service')]"/>
+                <filter string="Combo" name="type_combo"
+                        domain="[('product_type', '=', 'combo')]"/>
+                <separator/>
+                <filter string="Invoiced" name="invoiced"
+                        domain="[('invoiced_qty', '&gt;', 0)]"/>
+                <filter string="Refunded" name="refunded"
+                        domain="[('invoiced_qty', '&lt;', 0)]"/>
+                <filter string="Not Invoiced" name="not_invoiced"
+                        domain="['|', ('invoiced_qty', '=', 0), ('invoiced_qty', '=', False)]"/>
+                <separator/>
+                <filter string="Delivered" name="delivered"
+                        domain="[('moved_qty', '!=', 0)]"/>
+                <filter string="Not Delivered" name="not_delivered"
+                        domain="['|', ('moved_qty', '=', 0), ('moved_qty', '=', False)]"/>
+                <separator/>
+                <filter string="Profitable" name="profitable"
+                        domain="[('gp', '&gt;', 0)]"/>
+                <filter string="Loss" name="loss"
+                        domain="[('gp', '&lt;', 0)]"/>
+                <group>
+                    <filter string="Company" name="company_id" domain="[]"
+                            context="{'group_by': 'company_id'}"/>
+                    <filter string="Customer" name="partner_id" domain="[]"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Product" name="product_id" domain="[]"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Category" name="categ_id" domain="[]"
+                            context="{'group_by': 'categ_id'}"/>
+                    <filter string="Revenue Account" name="account_id" domain="[]"
+                            context="{'group_by': 'account_id'}"/>
+                    <filter string="Order Date" name="group_date" domain="[]"
+                            context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Wizard form ────────────────────────────────────────────────────── -->
+    <record id="odooer_gp_report_wizard_form" model="ir.ui.view">
+        <field name="name">odooer.gp.report.wizard.form</field>
+        <field name="model">odooer.gp.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Gross Profit — Choose Date Range">
+                <group>
+                    <field name="start_date" string="From" widget="daterange"
+                           options="{'end_date_field': 'end_date'}"/>
+                    <field name="end_date" string="To"/>
+                </group>
+                <footer>
+                    <button name="open_at_date" string="View Report"
+                            type="object" class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── Window actions ─────────────────────────────────────────────────── -->
+    <record id="action_odooer_gp_report" model="ir.actions.act_window">
+        <field name="name">Gross Profit</field>
+        <field name="res_model">odooer.gp.report</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="action_odooer_gp_report_wizard" model="ir.actions.act_window">
+        <field name="name">Gross Profit — Date Range</field>
+        <field name="res_model">odooer.gp.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>
+
+<odoo>
+
     <!-- ── List view ──────────────────────────────────────────────────────── -->
     <record id="odooer_gp_report_list" model="ir.ui.view">
         <field name="name">odooer.gp.report.list</field>
