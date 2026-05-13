@@ -106,7 +106,9 @@ class OdooerGpReport(models.Model):
                 SELECT
                     ilr.order_line_id                                        AS sale_line_id,
                     aml.company_id,
-                    aml.account_id,
+                    -- Revenue account from the invoice side (not the refund)
+                    MIN(CASE WHEN am.move_type = 'out_invoice'
+                             THEN aml.account_id END)                        AS account_id,
                     SUM(
                         CASE am.move_type WHEN 'out_refund' THEN -1 ELSE 1 END
                         * aml.quantity
@@ -117,8 +119,19 @@ class OdooerGpReport(models.Model):
                         ON ilr.invoice_line_id = aml.id
                 INNER JOIN account_move am ON am.id = aml.move_id
                 WHERE am.state = 'posted'
-                  AND aml.date BETWEEN '{start}' AND '{end}'
-                GROUP BY ilr.order_line_id, aml.company_id, aml.account_id
+                  -- Include all invoices for lines that have any invoice activity
+                  -- in the period. This ensures a credit note issued in a later
+                  -- period nets correctly against its original invoice.
+                  AND ilr.order_line_id IN (
+                      SELECT ilr2.order_line_id
+                      FROM account_move_line aml2
+                      JOIN sale_order_line_invoice_rel ilr2
+                              ON ilr2.invoice_line_id = aml2.id
+                      JOIN account_move am2 ON am2.id = aml2.move_id
+                      WHERE am2.state = 'posted'
+                        AND aml2.date BETWEEN '{start}' AND '{end}'
+                  )
+                GROUP BY ilr.order_line_id, aml.company_id
             ),
             cost AS (
                 SELECT
@@ -201,7 +214,7 @@ class OdooerGpReport(models.Model):
         )
 
     def _group_by(self):
-        return "sol.id, so.id, sale.account_id, sale.company_id, pt.categ_id, pt.type, sol.product_uom_id"
+        return "sol.id, so.id, sale.company_id, pt.categ_id, pt.type, sol.product_uom_id"
 
     @property
     def _table_query(self):
