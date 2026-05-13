@@ -233,24 +233,22 @@ BEGIN
     END LOOP;
 
     -- ── Step 4: Update odooer_remaining_qty and cleanup ──────────────────
-    -- Sync the remaining qty column from the temp table so real-time
-    -- linking picks up the correct queue state after regeneration.
+    -- Single LEFT JOIN pass: moves in the temp table get their actual
+    -- remaining qty; moves NOT in the temp table (fully consumed or never
+    -- had remaining) are zeroed out.
+    -- Scoped to the regen range so partial reruns don't touch older moves.
     UPDATE stock_move sm
-       SET odooer_remaining_qty = GREATEST(fr.remaining, 0)
-      FROM _odooer_fifo_remaining fr
-     WHERE sm.id = fr.move_id;
-
-    -- For full regeneration, also zero out any incoming moves that were
-    -- fully consumed but still carry a stale odooer_remaining_qty value.
-    IF p_from_date IS NULL THEN
-        UPDATE stock_move
-           SET odooer_remaining_qty = 0
-         WHERE is_in = TRUE
-           AND state = 'done'
-           AND company_id = p_company_id
-           AND (odooer_remaining_qty IS NULL OR odooer_remaining_qty > 0)
-           AND id NOT IN (SELECT move_id FROM _odooer_fifo_remaining WHERE remaining > 0);
-    END IF;
+       SET odooer_remaining_qty = COALESCE(GREATEST(fr.remaining, 0), 0)
+      FROM (
+          SELECT sm2.id, fr.remaining
+          FROM stock_move sm2
+          LEFT JOIN _odooer_fifo_remaining fr ON fr.move_id = sm2.id
+          WHERE sm2.is_in      = TRUE
+            AND sm2.state      = 'done'
+            AND sm2.company_id = p_company_id
+            AND (p_from_date IS NULL OR sm2.date::date >= p_from_date)
+      ) upd
+     WHERE sm.id = upd.id;
 
     DROP TABLE IF EXISTS _odooer_fifo_remaining;
 
