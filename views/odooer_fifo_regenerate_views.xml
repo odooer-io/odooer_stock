@@ -16,16 +16,13 @@
                     <group invisible="state == 'done'">
                         <group string="Scope">
                             <field name="company_id" groups="base.group_multi_company"/>
-                            <field name="from_date"
-                                   placeholder="Leave empty to rebuild all history"/>
                         </group>
                         <group string="What this does">
                             <div class="text-muted" colspan="2">
-                                <p>Builds <b>odooer.fifo.link</b> records for all existing stock moves
-                                using the FIFO algorithm. Run this once after installing the module
-                                on an existing database.</p>
-                                <p>If <b>From Date</b> is set, only outgoing moves from that date
-                                onward are reprocessed. Existing links before that date are preserved.</p>
+                                <p>Deletes <b>all existing FIFO links</b> for the selected company
+                                and rebuilds them from scratch using the full stock move history.</p>
+                                <p>Run this once after installing the module on an existing database,
+                                or whenever links need to be fully corrected.</p>
                                 <p class="text-warning">
                                     <i class="fa fa-clock-o"/> This operation may take several minutes
                                     on databases with a large move history.

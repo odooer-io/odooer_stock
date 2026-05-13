@@ -30,12 +30,7 @@ class OdooerFifoRegenerate(models.TransientModel):
         required=True,
         default=lambda self: self.env.company,
     )
-    from_date = fields.Date(
-        string='From Date',
-        help="Regenerate links only for outgoing moves on or after this date. "
-             "Leave empty to regenerate all links from the beginning. "
-             "Existing links for outgoing moves before this date are preserved.",
-    )
+    from_date = fields.Date(string='From Date')  # kept for PL/pgSQL compat; always None
     state = fields.Selection([
         ('draft', 'Ready'),
         ('done', 'Completed'),
@@ -57,8 +52,8 @@ class OdooerFifoRegenerate(models.TransientModel):
         )
 
         self.env.cr.execute(
-            "SELECT odooer_build_fifo_links(%s, %s)",
-            [self.company_id.id, self.from_date or None],
+            "SELECT odooer_build_fifo_links(%s, NULL)",
+            [self.company_id.id],
         )
         link_count = self.env.cr.fetchone()[0]
 
