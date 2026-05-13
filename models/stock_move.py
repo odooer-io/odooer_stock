@@ -70,8 +70,11 @@ class StockMove(models.Model):
         Walk the FIFO stack for each outgoing move and create
         odooer.fifo.link records.  Mirrors the algorithm in
         product._run_fifo() but stores links instead of computing a value.
+
+        Uses sudo() so that inventory users without admin rights can
+        trigger this when validating a delivery.
         """
-        FifoLink = self.env['odooer.fifo.link']
+        FifoLink = self.env['odooer.fifo.link'].sudo()
         # Track how much of each product's FIFO qty is already consumed
         # when multiple outgoing moves are done simultaneously.
         fifo_qty_processed = defaultdict(float)
