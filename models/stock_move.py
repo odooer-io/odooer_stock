@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
-from collections import defaultdict
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -67,17 +66,23 @@ class StockMove(models.Model):
 
     def _create_odooer_fifo_links(self):
         """
-        Walk the FIFO stack for each outgoing move and create
-        odooer.fifo.link records.  Mirrors the algorithm in
-        product._run_fifo() but stores links instead of computing a value.
+        Walk our own FIFO stack to create odooer.fifo.link records for each
+        outgoing move.
 
-        Uses sudo() so that inventory users without admin rights can
-        trigger this when validating a delivery.
+        We intentionally do NOT use product._run_fifo_get_stack() because that
+        method uses qty_available, which has already been decremented by the
+        time _action_done returns.  Instead we query our own odooer_fifo_link
+        table to compute remaining qty per incoming move.
+
+        Because we call FifoLink.create() inside the loop, each subsequent
+        outgoing move in the same batch sees the updated remaining quantities
+        from previously created links — correct FIFO ordering within a batch.
+
+        Uses sudo() so that inventory users without admin rights can trigger
+        this when validating a delivery.
         """
         FifoLink = self.env['odooer.fifo.link'].sudo()
-        # Track how much of each product's FIFO qty is already consumed
-        # when multiple outgoing moves are done simultaneously.
-        fifo_qty_processed = defaultdict(float)
+        cr = self.env.cr
 
         for move in self:
             product = move.product_id
@@ -85,27 +90,40 @@ class StockMove(models.Model):
             if product.uom_id.compare(qty_to_consume, 0) <= 0:
                 continue
 
-            fifo_stack, qty_on_first_move = product.with_context(
-                fifo_qty_already_processed=fifo_qty_processed[product]
-            )._run_fifo_get_stack()
+            # Incoming moves with remaining qty, oldest first (FIFO order).
+            # Remaining = move_line qty  -  already consumed via our links.
+            cr.execute("""
+                SELECT sm.id,
+                       COALESCE(sml.qty, 0) - COALESCE(consumed.qty, 0) AS available
+                FROM stock_move sm
+                LEFT JOIN (
+                    SELECT move_id, SUM(quantity_product_uom) AS qty
+                    FROM stock_move_line
+                    WHERE state = 'done'
+                    GROUP BY move_id
+                ) sml ON sml.move_id = sm.id
+                LEFT JOIN (
+                    SELECT incoming_move_id, SUM(quantity) AS qty
+                    FROM odooer_fifo_link
+                    GROUP BY incoming_move_id
+                ) consumed ON consumed.incoming_move_id = sm.id
+                WHERE sm.product_id = %s
+                  AND sm.is_in = TRUE
+                  AND sm.state = 'done'
+                  AND sm.company_id = %s
+                  AND COALESCE(sml.qty, 0) - COALESCE(consumed.qty, 0) > 0
+                ORDER BY sm.date ASC, sm.id ASC
+            """, (product.id, move.company_id.id))
 
             remaining = qty_to_consume
             links_to_create = []
 
-            while remaining > 0 and fifo_stack:
-                incoming = fifo_stack.pop(0)
-                valued_qty = incoming._get_valued_qty()
-
-                if qty_on_first_move:
-                    # The first move in the stack may only be partially available
-                    available = qty_on_first_move
-                    qty_on_first_move = 0
-                else:
-                    available = valued_qty
-
+            for (in_move_id, available) in cr.fetchall():
+                if remaining <= 0:
+                    break
                 consumed = min(available, remaining)
                 links_to_create.append({
-                    'incoming_move_id': incoming.id,
+                    'incoming_move_id': in_move_id,
                     'outgoing_move_id': move.id,
                     'quantity': consumed,
                 })
@@ -113,5 +131,3 @@ class StockMove(models.Model):
 
             if links_to_create:
                 FifoLink.create(links_to_create)
-
-            fifo_qty_processed[product] += qty_to_consume
