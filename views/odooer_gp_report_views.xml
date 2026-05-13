@@ -250,10 +250,6 @@
         <field name="target">new</field>
     </record>
 
-</odoo>
-
-<odoo>
-
     <!-- ── List view ──────────────────────────────────────────────────────── -->
     <record id="odooer_gp_report_list" model="ir.ui.view">
         <field name="name">odooer.gp.report.list</field>
