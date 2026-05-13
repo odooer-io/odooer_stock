@@ -103,13 +103,15 @@ RETURNS INTEGER
 LANGUAGE plpgsql
 AS $func$
 DECLARE
-    v_out       RECORD;
-    v_in        RECORD;
-    v_remaining NUMERIC;
-    v_consumed  NUMERIC;
-    v_count     INTEGER := 0;
-    v_uid       INTEGER;
-    v_now       TIMESTAMP := NOW();
+    v_out           RECORD;
+    v_in            RECORD;
+    v_remaining     NUMERIC;
+    v_consumed      NUMERIC;
+    v_count         INTEGER := 0;
+    v_uid           INTEGER;
+    v_now           TIMESTAMP := NOW();
+    v_last_unit_cost NUMERIC;
+    v_std_price     NUMERIC;
 BEGIN
     -- Resolve admin uid for audit fields
     SELECT id INTO v_uid FROM res_users WHERE id = 1 LIMIT 1;
@@ -190,6 +192,7 @@ BEGIN
         ORDER BY sm.date ASC, sm.id ASC
     LOOP
         v_remaining := v_out.out_qty;
+        v_last_unit_cost := NULL;
 
         -- Consume oldest incoming moves for this product (FIFO order)
         FOR v_in IN
@@ -202,6 +205,7 @@ BEGIN
             EXIT WHEN v_remaining <= 0.0000001;
 
             v_consumed := LEAST(v_in.remaining, v_remaining);
+            v_last_unit_cost := CASE WHEN v_in.move_qty > 0 THEN v_in.move_value / v_in.move_qty ELSE 0 END;
 
             INSERT INTO odooer_fifo_link (
                 incoming_move_id, outgoing_move_id, quantity,
@@ -213,8 +217,8 @@ BEGIN
                 v_in.move_id, v_out.move_id, v_consumed,
                 p_company_id, v_out.product_id,
                 v_in.move_date, v_out.move_date,
-                CASE WHEN v_in.move_qty > 0 THEN v_in.move_value / v_in.move_qty ELSE 0 END,
-                v_consumed * CASE WHEN v_in.move_qty > 0 THEN v_in.move_value / v_in.move_qty ELSE 0 END,
+                v_last_unit_cost,
+                v_consumed * v_last_unit_cost,
                 v_uid, v_now, v_uid, v_now
             );
 
@@ -225,6 +229,36 @@ BEGIN
             v_remaining := v_remaining - v_consumed;
             v_count     := v_count + 1;
         END LOOP;
+
+        -- Overflow: outgoing qty exceeds FIFO stack — use last known cost
+        -- (or standard_price if the stack was completely empty)
+        IF v_remaining > 0.0000001 THEN
+            IF v_last_unit_cost IS NULL THEN
+                SELECT COALESCE(standard_price, 0) INTO v_std_price
+                FROM product_template pt
+                JOIN product_product pp ON pp.product_tmpl_id = pt.id
+                WHERE pp.id = v_out.product_id
+                LIMIT 1;
+                v_last_unit_cost := v_std_price;
+            END IF;
+
+            INSERT INTO odooer_fifo_link (
+                incoming_move_id, outgoing_move_id, quantity,
+                company_id, product_id,
+                incoming_date, outgoing_date,
+                unit_cost, outgoing_value, override_unit_cost,
+                create_uid, create_date, write_uid, write_date
+            ) VALUES (
+                NULL, v_out.move_id, v_remaining,
+                p_company_id, v_out.product_id,
+                NULL, v_out.move_date,
+                v_last_unit_cost,
+                v_remaining * v_last_unit_cost,
+                v_last_unit_cost,
+                v_uid, v_now, v_uid, v_now
+            );
+            v_count := v_count + 1;
+        END IF;
     END LOOP;
 
     -- ── Step 4: Update odooer_remaining_qty and cleanup ──────────────────

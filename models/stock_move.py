@@ -110,6 +110,12 @@ class StockMove(models.Model):
         queue is scanned. A partial index on (product_id, company_id, date, id)
         WHERE odooer_remaining_qty > 0 makes this query very fast.
 
+        Overflow / negative stock: when the FIFO stack is exhausted before
+        the outgoing qty is fully consumed, an overflow link is created with
+        incoming_move_id=NULL and override_unit_cost set to the last consumed
+        incoming move's unit cost (or product.standard_price if the stack was
+        completely empty). This matches Odoo's own _run_fifo() behaviour.
+
         Uses sudo() so that inventory users without admin rights can trigger
         this when validating a delivery.
         """
@@ -122,7 +128,8 @@ class StockMove(models.Model):
                 continue
 
             cr.execute("""
-                SELECT id, odooer_remaining_qty
+                SELECT id, odooer_remaining_qty,
+                       CASE WHEN quantity > 0 THEN value / quantity ELSE 0 END AS unit_cost
                 FROM stock_move
                 WHERE product_id = %s
                   AND company_id = %s
@@ -132,9 +139,10 @@ class StockMove(models.Model):
 
             remaining = qty_to_consume
             links_to_create = []
-            decrements = []  # (consumed, in_move_id)
+            decrements = []
+            last_unit_cost = None
 
-            for (in_move_id, available) in cr.fetchall():
+            for (in_move_id, available, unit_cost) in cr.fetchall():
                 if remaining <= 0:
                     break
                 consumed = min(available, remaining)
@@ -144,13 +152,25 @@ class StockMove(models.Model):
                     'quantity': consumed,
                 })
                 decrements.append((consumed, in_move_id))
+                last_unit_cost = unit_cost
                 remaining -= consumed
+
+            # Overflow: outgoing exceeds available FIFO stack
+            if remaining > 0:
+                if last_unit_cost is None:
+                    last_unit_cost = move.product_id.standard_price
+                links_to_create.append({
+                    'incoming_move_id': False,
+                    'outgoing_move_id': move.id,
+                    'quantity': remaining,
+                    'override_unit_cost': last_unit_cost,
+                })
 
             if links_to_create:
                 FifoLink.create(links_to_create)
-                # Decrement remaining qty in bulk
-                cr.executemany(
-                    "UPDATE stock_move SET odooer_remaining_qty = odooer_remaining_qty - %s WHERE id = %s",
-                    decrements,
-                )
+                if decrements:
+                    cr.executemany(
+                        "UPDATE stock_move SET odooer_remaining_qty = odooer_remaining_qty - %s WHERE id = %s",
+                        decrements,
+                    )
                 self.env['stock.move'].invalidate_model(['odooer_remaining_qty'])

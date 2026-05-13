@@ -10,6 +10,12 @@ class OdooerFifoLink(models.Model):
     - quantity is fixed at the time the outgoing move is done.
     - unit_cost and outgoing_value are dynamic: they cascade from changes to
       incoming_move_id.value (bills, landed costs, manual adjustments).
+
+    Overflow / negative-stock records:
+      When outgoing qty exceeds available FIFO stack, an overflow link is
+      created with incoming_move_id = NULL and override_unit_cost set to
+      the last known FIFO unit cost (or standard_price). This matches
+      Odoo's own FIFO valuation behaviour.
     """
     _name = 'odooer.fifo.link'
     _description = 'FIFO Cost-Flow Link (Incoming → Outgoing)'
@@ -17,7 +23,7 @@ class OdooerFifoLink(models.Model):
 
     incoming_move_id = fields.Many2one(
         'stock.move', string='Incoming Move',
-        required=True, index=True, ondelete='restrict',
+        required=False, index=True, ondelete='restrict',
     )
     outgoing_move_id = fields.Many2one(
         'stock.move', string='Outgoing Move',
@@ -28,6 +34,15 @@ class OdooerFifoLink(models.Model):
         digits='Product Unit of Measure',
         help="Quantity of the incoming move consumed by the outgoing move. "
              "Fixed at the time the outgoing move is validated.",
+    )
+
+    # For overflow (negative-stock) links where incoming_move_id is NULL,
+    # this stores the unit cost to use (last FIFO cost or standard_price).
+    override_unit_cost = fields.Float(
+        string='Override Unit Cost',
+        digits='Product Price',
+        help="Used when there is no incoming move (negative-stock overflow). "
+             "Set to the last known FIFO unit cost or standard_price.",
     )
 
     # ── Computed fields (dynamic — cascade from incoming move value) ──────────
@@ -47,7 +62,7 @@ class OdooerFifoLink(models.Model):
     )
     currency_id = fields.Many2one(
         'res.currency',
-        related='incoming_move_id.company_id.currency_id',
+        related='outgoing_move_id.company_id.currency_id',
         string='Currency',
     )
 
@@ -68,12 +83,14 @@ class OdooerFifoLink(models.Model):
 
     # ── Compute ───────────────────────────────────────────────────────────────
 
-    @api.depends('quantity', 'incoming_move_id.value', 'incoming_move_id.quantity')
+    @api.depends('quantity', 'override_unit_cost',
+                 'incoming_move_id.value', 'incoming_move_id.quantity')
     def _compute_outgoing_value(self):
         for link in self:
             incoming = link.incoming_move_id
-            if incoming.quantity:
+            if incoming and incoming.quantity:
                 link.unit_cost = incoming.value / incoming.quantity
             else:
-                link.unit_cost = 0.0
+                # Overflow link — use the stored override cost
+                link.unit_cost = link.override_unit_cost
             link.outgoing_value = link.quantity * link.unit_cost
