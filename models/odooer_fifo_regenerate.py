@@ -70,7 +70,7 @@ class OdooerFifoRegenerate(models.TransientModel):
 
         # Invalidate caches so computed fields recompute
         self.env['stock.move'].invalidate_model(
-            ['odooer_value', 'odooer_unit_cost']
+            ['odooer_value', 'odooer_unit_cost', 'odooer_remaining_qty']
         )
         self.env['product.product'].invalidate_model(['odooer_fifo_cost'])
 
@@ -232,7 +232,26 @@ BEGIN
         END LOOP;
     END LOOP;
 
-    -- ── Step 4: Cleanup ───────────────────────────────────────────────────
+    -- ── Step 4: Update odooer_remaining_qty and cleanup ──────────────────
+    -- Sync the remaining qty column from the temp table so real-time
+    -- linking picks up the correct queue state after regeneration.
+    UPDATE stock_move sm
+       SET odooer_remaining_qty = GREATEST(fr.remaining, 0)
+      FROM _odooer_fifo_remaining fr
+     WHERE sm.id = fr.move_id;
+
+    -- For full regeneration, also zero out any incoming moves that were
+    -- fully consumed but still carry a stale odooer_remaining_qty value.
+    IF p_from_date IS NULL THEN
+        UPDATE stock_move
+           SET odooer_remaining_qty = 0
+         WHERE is_in = TRUE
+           AND state = 'done'
+           AND company_id = p_company_id
+           AND (odooer_remaining_qty IS NULL OR odooer_remaining_qty > 0)
+           AND id NOT IN (SELECT move_id FROM _odooer_fifo_remaining WHERE remaining > 0);
+    END IF;
+
     DROP TABLE IF EXISTS _odooer_fifo_remaining;
 
     RETURN v_count;
