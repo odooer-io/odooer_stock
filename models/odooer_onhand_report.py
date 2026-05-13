@@ -77,21 +77,16 @@ class OdooerOnhandReport(models.Model):
         company_ids = self._company_ids_sql()
         as_of = self._as_of()
         return """
-            -- FIFO remaining per product as of {as_of}
-            fifo_summary AS (
+            -- Positive FIFO remaining from incoming moves as of {as_of}
+            raw_fifo AS (
                 SELECT
                     sm.product_id,
                     sm.company_id,
-                    SUM(
-                        COALESCE(sml_qty.qty, 0)
-                        - COALESCE(consumed.qty, 0)
-                    )                                                           AS fifo_remaining_qty,
-                    SUM(
-                        (COALESCE(sml_qty.qty, 0) - COALESCE(consumed.qty, 0))
-                        * CASE WHEN COALESCE(sml_qty.qty, 0) > 0
-                               THEN sm.value / sml_qty.qty
-                               ELSE 0 END
-                    )                                                           AS fifo_remaining_value
+                    COALESCE(sml_qty.qty, 0) - COALESCE(consumed.qty, 0)       AS remaining_qty,
+                    (COALESCE(sml_qty.qty, 0) - COALESCE(consumed.qty, 0))
+                    * CASE WHEN COALESCE(sml_qty.qty, 0) > 0
+                           THEN sm.value / sml_qty.qty
+                           ELSE 0 END                                           AS remaining_value
                 FROM stock_move sm
                 LEFT JOIN (
                     SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
@@ -103,7 +98,8 @@ class OdooerOnhandReport(models.Model):
                     SELECT fl.incoming_move_id, SUM(fl.quantity) AS qty
                     FROM odooer_fifo_link fl
                     JOIN stock_move out_sm ON out_sm.id = fl.outgoing_move_id
-                    WHERE out_sm.date::date <= '{as_of}'
+                    WHERE fl.incoming_move_id IS NOT NULL
+                      AND out_sm.date::date <= '{as_of}'
                     GROUP BY fl.incoming_move_id
                 ) consumed ON consumed.incoming_move_id = sm.id
                 WHERE sm.is_in          = TRUE
@@ -111,7 +107,37 @@ class OdooerOnhandReport(models.Model):
                   AND sm.date::date    <= '{as_of}'
                   AND COALESCE(sml_qty.qty, 0) > 0
                   AND sm.company_id IN ({company_ids})
-                GROUP BY sm.product_id, sm.company_id
+            ),
+
+            -- Overflow / negative-stock debt: consumption beyond the FIFO stack
+            -- (links with incoming_move_id IS NULL). Subtracted from the total.
+            overflow AS (
+                SELECT
+                    fl.product_id,
+                    fl.company_id,
+                    -SUM(fl.quantity)        AS remaining_qty,
+                    -SUM(fl.outgoing_value)  AS remaining_value
+                FROM odooer_fifo_link fl
+                JOIN stock_move out_sm ON out_sm.id = fl.outgoing_move_id
+                WHERE fl.incoming_move_id IS NULL
+                  AND out_sm.date::date <= '{as_of}'
+                  AND fl.company_id IN ({company_ids})
+                GROUP BY fl.product_id, fl.company_id
+            ),
+
+            -- Combined FIFO summary: raw remaining minus overflow debt
+            fifo_summary AS (
+                SELECT
+                    product_id,
+                    company_id,
+                    SUM(remaining_qty)   AS fifo_remaining_qty,
+                    SUM(remaining_value) AS fifo_remaining_value
+                FROM (
+                    SELECT product_id, company_id, remaining_qty, remaining_value FROM raw_fifo
+                    UNION ALL
+                    SELECT product_id, company_id, remaining_qty, remaining_value FROM overflow
+                ) combined
+                GROUP BY product_id, company_id
             ),
 
             -- On-hand in internal locations as of {as_of} (reconstructed from move lines)
@@ -163,8 +189,9 @@ class OdooerOnhandReport(models.Model):
             pt.categ_id,
             pt.uom_id,
 
-            -- FIFO unit cost = total remaining value / total remaining qty
-            CASE WHEN fs.fifo_remaining_qty > 0
+            -- FIFO unit cost = remaining value / remaining qty
+            -- Works for both positive and negative stock (negative / negative = positive)
+            CASE WHEN fs.fifo_remaining_qty <> 0
                  THEN fs.fifo_remaining_value / fs.fifo_remaining_qty
                  ELSE 0 END                                                     AS unit_cost,
 
@@ -173,7 +200,7 @@ class OdooerOnhandReport(models.Model):
 
             -- On-hand (internal only)
             COALESCE(oh.qty, 0)                                                 AS onhand_qty,
-            CASE WHEN fs.fifo_remaining_qty > 0
+            CASE WHEN fs.fifo_remaining_qty <> 0
                  THEN fs.fifo_remaining_value / fs.fifo_remaining_qty
                  ELSE 0 END
                 * COALESCE(oh.qty, 0)                                           AS onhand_value,
@@ -183,7 +210,7 @@ class OdooerOnhandReport(models.Model):
 
             -- In transit
             COALESCE(tr.qty, 0)                                                 AS transit_qty,
-            CASE WHEN fs.fifo_remaining_qty > 0
+            CASE WHEN fs.fifo_remaining_qty <> 0
                  THEN fs.fifo_remaining_value / fs.fifo_remaining_qty
                  ELSE 0 END
                 * COALESCE(tr.qty, 0)                                           AS transit_value
