@@ -122,11 +122,22 @@ class OdooerGpReport(models.Model):
             ),
             cost AS (
                 SELECT
-                    sm.sale_line_id,
-                    -- Use quantity_product_uom from move lines (rounded, matches Odoo's FIFO)
-                    SUM(COALESCE(sml_qty.qty, 0))                                AS moved_qty,
-                    COALESCE(SUM(fl_agg.fifo_value), 0)                          AS cogs
+                    COALESCE(sm.sale_line_id, orig.sale_line_id)                 AS sale_line_id,
+                    SUM(
+                        CASE WHEN sm.is_out THEN 1 ELSE -1 END
+                        * COALESCE(sml_qty.qty, 0)
+                    )                                                            AS moved_qty,
+                    SUM(
+                        CASE WHEN sm.is_out
+                             THEN COALESCE(fl_agg.fifo_value, 0)
+                             -- Return: subtract the inventory value coming back
+                             ELSE sm.value
+                        END
+                        * CASE WHEN sm.is_out THEN 1 ELSE -1 END
+                    )                                                            AS cogs
                 FROM stock_move sm
+                JOIN stock_location sl_src ON sl_src.id = sm.location_id
+                LEFT JOIN stock_move orig ON orig.id = sm.origin_returned_move_id
                 LEFT JOIN (
                     SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
                     FROM stock_move_line sml
@@ -139,10 +150,16 @@ class OdooerGpReport(models.Model):
                     GROUP BY outgoing_move_id
                 ) fl_agg ON fl_agg.outgoing_move_id = sm.id
                 WHERE sm.state = 'done'
-                  AND sm.is_out = true
-                  AND sm.sale_line_id IS NOT NULL
                   AND sm.date::date BETWEEN '{start}' AND '{end}'
-                GROUP BY sm.sale_line_id
+                  AND (
+                      -- Outgoing delivery linked to a sale line
+                      (sm.is_out = TRUE AND sm.sale_line_id IS NOT NULL)
+                      OR
+                      -- Incoming return from customer location
+                      (sm.is_in = TRUE AND sl_src.usage = 'customer'
+                       AND (sm.sale_line_id IS NOT NULL OR orig.sale_line_id IS NOT NULL))
+                  )
+                GROUP BY COALESCE(sm.sale_line_id, orig.sale_line_id)
             )
         """.format(start=start, end=end)
 
