@@ -238,7 +238,7 @@ BEGIN
     -- had remaining) are zeroed out.
     -- Scoped to the regen range so partial reruns don't touch older moves.
     UPDATE stock_move sm
-       SET odooer_remaining_qty = COALESCE(GREATEST(fr.remaining, 0), 0)
+       SET odooer_remaining_qty = COALESCE(GREATEST(upd.remaining, 0), 0)
       FROM (
           SELECT sm2.id, fr.remaining
           FROM stock_move sm2
