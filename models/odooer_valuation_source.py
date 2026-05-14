@@ -78,28 +78,83 @@ class OdooerValuationSource(models.Model):
             """)
 
         # ── 2. Vendor bills via purchase_line_id ─────────────────────────────
+        # Uses cumulative-qty ranges to attribute bill amounts per receipt move.
+        # When a PO line has multiple receipts and multiple bills, each receipt
+        # only sees the bill(s) whose billed-qty range overlaps its received-qty
+        # range (ordered by date). This matches how Odoo sets sm.value.
         if (self._has_column('stock_move', 'purchase_line_id')
                 and self._has_column('account_move_line', 'purchase_line_id')):
             parts.append("""
+                WITH _bill_qtys AS (
+                    SELECT
+                        aml.purchase_line_id                AS pol_id,
+                        am.id                               AS am_id,
+                        am.name                             AS am_name,
+                        am.invoice_date,
+                        SUM(ABS(aml.quantity))              AS bill_qty,
+                        SUM(aml.balance)                    AS bill_balance
+                    FROM account_move_line aml
+                    JOIN account_move am ON am.id = aml.move_id
+                        AND am.state     = 'posted'
+                        AND am.move_type IN ('in_invoice', 'in_refund')
+                    WHERE aml.purchase_line_id IS NOT NULL
+                    GROUP BY aml.purchase_line_id, am.id, am.name, am.invoice_date
+                ),
+                _bill_cum AS (
+                    SELECT *,
+                        SUM(bill_qty) OVER (
+                            PARTITION BY pol_id ORDER BY invoice_date, am_id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        )              AS cum_bill_end,
+                        SUM(bill_qty) OVER (
+                            PARTITION BY pol_id ORDER BY invoice_date, am_id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        ) - bill_qty   AS cum_bill_start
+                    FROM _bill_qtys
+                ),
+                _move_qtys AS (
+                    SELECT
+                        sm.purchase_line_id                 AS pol_id,
+                        sm.id                               AS sm_id,
+                        sm.date,
+                        SUM(sml.quantity_product_uom)       AS move_qty
+                    FROM stock_move sm
+                    JOIN stock_move_line sml ON sml.move_id = sm.id AND sml.state = 'done'
+                    WHERE sm.is_in = TRUE AND sm.state = 'done'
+                      AND sm.purchase_line_id IS NOT NULL
+                    GROUP BY sm.purchase_line_id, sm.id, sm.date
+                ),
+                _move_cum AS (
+                    SELECT *,
+                        SUM(move_qty) OVER (
+                            PARTITION BY pol_id ORDER BY date, sm_id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        )              AS cum_move_end,
+                        SUM(move_qty) OVER (
+                            PARTITION BY pol_id ORDER BY date, sm_id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        ) - move_qty   AS cum_move_start
+                    FROM _move_qtys
+                )
                 SELECT
-                    am.id::bigint * 10 + 2          AS id,
-                    sm.id                            AS incoming_move_id,
-                    'bill'                           AS source_type,
-                    am.name                          AS reference,
-                    am.id                            AS account_move_id,
-                    NULL::integer                    AS landed_cost_id,
-                    SUM(aml.balance)                         AS value,
-                    comp.currency_id                 AS currency_id,
-                    am.invoice_date::timestamp       AS date
-                FROM stock_move sm
-                JOIN purchase_order_line pol ON pol.id = sm.purchase_line_id
-                JOIN account_move_line   aml ON aml.purchase_line_id = pol.id
-                JOIN account_move        am  ON am.id = aml.move_id
-                    AND am.state     = 'posted'
-                    AND am.move_type IN ('in_invoice', 'in_refund')
+                    bc.am_id::bigint * 10 + 2                       AS id,
+                    mc.sm_id                                         AS incoming_move_id,
+                    'bill'                                           AS source_type,
+                    bc.am_name                                       AS reference,
+                    bc.am_id                                         AS account_move_id,
+                    NULL::integer                                    AS landed_cost_id,
+                    bc.bill_balance
+                        * (LEAST(bc.cum_bill_end, mc.cum_move_end)
+                           - GREATEST(bc.cum_bill_start, mc.cum_move_start))
+                        / NULLIF(bc.bill_qty, 0)                    AS value,
+                    comp.currency_id                                 AS currency_id,
+                    bc.invoice_date::timestamp                       AS date
+                FROM _move_cum mc
+                JOIN _bill_cum bc ON bc.pol_id = mc.pol_id
+                    AND bc.cum_bill_end   > mc.cum_move_start
+                    AND bc.cum_bill_start < mc.cum_move_end
+                JOIN stock_move sm ON sm.id = mc.sm_id
                 JOIN res_company comp ON comp.id = sm.company_id
-                WHERE sm.is_in = TRUE
-                GROUP BY am.id, am.name, am.invoice_date, sm.id, comp.currency_id
             """)
 
         # ── 3. Landed costs ───────────────────────────────────────────────────
