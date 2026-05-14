@@ -229,6 +229,14 @@ class OdooerGpReport(models.Model):
                        AND (sm.sale_line_id IS NOT NULL OR orig.sale_line_id IS NOT NULL))
                   )
                 GROUP BY COALESCE(sm.sale_line_id, orig.sale_line_id)
+            ),
+            -- Company-wide fallback COGS account (ir.default)
+            cogs_acct_default AS (
+                SELECT d.company_id, (d.json_value)::int AS account_id
+                FROM ir_default d
+                JOIN ir_model_fields f ON f.id = d.field_id
+                WHERE f.name  = 'property_account_expense_categ_id'
+                  AND f.model = 'product.category'
             )
         """.format(start=start, end=end)
 
@@ -242,8 +250,16 @@ class OdooerGpReport(models.Model):
             so.id                                                            AS order_id,
             so.partner_id,
             sale.account_id,
-            (pc.property_account_expense_categ_id
-                ->>(COALESCE(sale.company_id, so.company_id)::text))::int    AS cogs_account_id,
+            -- COGS account: direct category → parent → grandparent → ir.default
+            COALESCE(
+                (pc.property_account_expense_categ_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                (pc2.property_account_expense_categ_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                (pc3.property_account_expense_categ_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                cad.account_id
+            )                                                                AS cogs_account_id,
             sol.product_id,
             pt.categ_id,
             pt.type                                                          AS product_type,
@@ -263,7 +279,11 @@ class OdooerGpReport(models.Model):
             INNER JOIN sale_order so ON so.id = sol.order_id
             LEFT JOIN product_product pp ON pp.id = sol.product_id
             LEFT JOIN product_template pt ON pt.id = pp.product_tmpl_id
-            LEFT JOIN product_category pc ON pc.id = pt.categ_id
+            LEFT JOIN product_category  pc  ON pc.id  = pt.categ_id
+            LEFT JOIN product_category  pc2 ON pc2.id = pc.parent_id
+            LEFT JOIN product_category  pc3 ON pc3.id = pc2.parent_id
+            LEFT JOIN cogs_acct_default cad
+                   ON cad.company_id = COALESCE(sale.company_id, so.company_id)
             LEFT JOIN cost ON sol.id = cost.sale_line_id
         """
 
@@ -274,7 +294,14 @@ class OdooerGpReport(models.Model):
         )
 
     def _group_by(self):
-        return "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, pt.categ_id, pt.type, sol.product_uom_id, sol.product_uom_qty, pc.property_account_expense_categ_id"
+        return (
+            "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
+            "pt.categ_id, pt.type, sol.product_uom_id, sol.product_uom_qty, "
+            "pc.property_account_expense_categ_id, "
+            "pc2.property_account_expense_categ_id, "
+            "pc3.property_account_expense_categ_id, "
+            "cad.account_id"
+        )
 
     @property
     def _table_query(self):

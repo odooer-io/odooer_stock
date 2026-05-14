@@ -178,6 +178,15 @@ class OdooerOnhandReport(models.Model):
                   AND sm.company_id IN ({company_ids})
                   AND (sl_src.usage = 'transit' OR sl_dest.usage = 'transit')
                 GROUP BY sml.product_id, sm.company_id
+            ),
+
+            -- Company-wide fallback stock valuation account (ir.default)
+            stock_acct_default AS (
+                SELECT d.company_id, (d.json_value)::int AS account_id
+                FROM ir_default d
+                JOIN ir_model_fields f ON f.id = d.field_id
+                WHERE f.name  = 'property_stock_valuation_account_id'
+                  AND f.model = 'product.category'
             )
         """.format(company_ids=company_ids, as_of=as_of)
 
@@ -190,9 +199,13 @@ class OdooerOnhandReport(models.Model):
             pt.categ_id,
             pt.uom_id,
 
-            -- Stock valuation account from product category (company-dependent JSONB)
-            (pc.property_stock_valuation_account_id->>(fs.company_id::text))::int
-                                                                                AS stock_account_id,
+            -- Stock valuation account: direct category → parent → ir.default fallback
+            COALESCE(
+                (pc.property_stock_valuation_account_id->>(fs.company_id::text))::int,
+                (pc2.property_stock_valuation_account_id->>(fs.company_id::text))::int,
+                (pc3.property_stock_valuation_account_id->>(fs.company_id::text))::int,
+                sad.account_id
+            )                                                                   AS stock_account_id,
 
             -- FIFO unit cost = remaining value / remaining qty
             -- Works for both positive and negative stock (negative / negative = positive)
@@ -226,7 +239,10 @@ class OdooerOnhandReport(models.Model):
             fifo_summary fs
             JOIN product_product pp ON pp.id = fs.product_id
             JOIN product_template pt ON pt.id = pp.product_tmpl_id
-            JOIN product_category pc ON pc.id = pt.categ_id
+            JOIN product_category  pc  ON pc.id  = pt.categ_id
+            LEFT JOIN product_category  pc2 ON pc2.id = pc.parent_id
+            LEFT JOIN product_category  pc3 ON pc3.id = pc2.parent_id
+            LEFT JOIN stock_acct_default sad ON sad.company_id = fs.company_id
             LEFT JOIN onhand  oh ON oh.product_id  = fs.product_id
                                  AND oh.company_id  = fs.company_id
             LEFT JOIN transit tr ON tr.product_id  = fs.product_id
