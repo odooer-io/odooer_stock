@@ -32,6 +32,7 @@
                     <page string="Value Sources" name="value_sources">
                         <field name="value_source_ids" readonly="1">
                             <list create="0" edit="0" decoration-info="source_type == 'landed_cost'">
+                                <field name="currency_id" column_invisible="1"/>
                                 <field name="date"/>
                                 <field name="source_type" widget="badge"/>
                                 <field name="reference"/>
