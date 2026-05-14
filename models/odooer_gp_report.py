@@ -35,6 +35,7 @@ class OdooerGpReport(models.Model):
     order_line_id = fields.Many2one('sale.order.line', string='Sale Line', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Customer', readonly=True)
     account_id = fields.Many2one('account.account', string='Revenue Account', readonly=True)
+    cogs_account_id = fields.Many2one('account.account', string='COGS Account', readonly=True)
     product_id = fields.Many2one('product.product', string='Product', readonly=True)
     categ_id = fields.Many2one('product.category', string='Category', readonly=True)
     uom_id = fields.Many2one('uom.uom', string='Unit', readonly=True)
@@ -241,6 +242,8 @@ class OdooerGpReport(models.Model):
             so.id                                                            AS order_id,
             so.partner_id,
             sale.account_id,
+            (pc.property_account_expense_categ_id
+                ->>(COALESCE(sale.company_id, so.company_id)::text))::int    AS cogs_account_id,
             sol.product_id,
             pt.categ_id,
             pt.type                                                          AS product_type,
@@ -260,6 +263,7 @@ class OdooerGpReport(models.Model):
             INNER JOIN sale_order so ON so.id = sol.order_id
             LEFT JOIN product_product pp ON pp.id = sol.product_id
             LEFT JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            LEFT JOIN product_category pc ON pc.id = pt.categ_id
             LEFT JOIN cost ON sol.id = cost.sale_line_id
         """
 
@@ -270,7 +274,7 @@ class OdooerGpReport(models.Model):
         )
 
     def _group_by(self):
-        return "sol.id, so.id, sale.account_id, sale.company_id, pt.categ_id, pt.type, sol.product_uom_id, sol.product_uom_qty"
+        return "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, pt.categ_id, pt.type, sol.product_uom_id, sol.product_uom_qty, pc.property_account_expense_categ_id"
 
     @property
     def _table_query(self):

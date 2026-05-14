@@ -23,6 +23,7 @@ class OdooerOnhandReport(models.Model):
     product_id  = fields.Many2one('product.product', string='Product', readonly=True)
     categ_id    = fields.Many2one('product.category', string='Category', readonly=True)
     uom_id      = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
+    stock_account_id = fields.Many2one('account.account', string='Stock Account', readonly=True)
 
     # ── Measures ──────────────────────────────────────────────────────────────
     unit_cost          = fields.Float(string='FIFO Unit Cost',     digits='Product Price',            readonly=True)
@@ -189,6 +190,10 @@ class OdooerOnhandReport(models.Model):
             pt.categ_id,
             pt.uom_id,
 
+            -- Stock valuation account from product category (company-dependent JSONB)
+            (pc.property_stock_valuation_account_id->>(fs.company_id::text))::int
+                                                                                AS stock_account_id,
+
             -- FIFO unit cost = remaining value / remaining qty
             -- Works for both positive and negative stock (negative / negative = positive)
             CASE WHEN fs.fifo_remaining_qty <> 0
@@ -221,6 +226,7 @@ class OdooerOnhandReport(models.Model):
             fifo_summary fs
             JOIN product_product pp ON pp.id = fs.product_id
             JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            JOIN product_category pc ON pc.id = pt.categ_id
             LEFT JOIN onhand  oh ON oh.product_id  = fs.product_id
                                  AND oh.company_id  = fs.company_id
             LEFT JOIN transit tr ON tr.product_id  = fs.product_id
