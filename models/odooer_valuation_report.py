@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import importlib.util
 from datetime import date as date_type
 from odoo import api, fields, models
 from odoo.tools.misc import format_date
+
+_HAS_MRP = bool(importlib.util.find_spec('odoo.addons.mrp'))
 
 
 class OdooerValuationReport(models.Model):
@@ -47,7 +50,12 @@ class OdooerValuationReport(models.Model):
     uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Vendor', readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Receipt', readonly=True)
-    production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
+    if _HAS_MRP:
+        production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
+    else:
+        # Placeholder so views referencing production_id don't fail validation
+        # on databases without the mrp module installed.
+        production_id = fields.Integer(string='Mfg Order', readonly=True)
     reference = fields.Char(string='Reference', readonly=True)
     location_dest_id = fields.Many2one('stock.location', string='Location', readonly=True)
     stock_valuation_account_id = fields.Many2one('account.account', string='Stock Account', readonly=True)
