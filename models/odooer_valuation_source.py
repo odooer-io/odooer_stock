@@ -254,4 +254,23 @@ class OdooerValuationSource(models.Model):
     @property
     def _table_query(self):
         parts = self._parts()
-        return " UNION ALL ".join(f"({p})" for p in parts)
+        union = " UNION ALL ".join(f"({p})" for p in parts)
+        # Wrap in ROW_NUMBER() to guarantee unique IDs across all source rows.
+        # The raw parts use source_id * 10 + type, which collides when the same
+        # bill (am_id) contributes to multiple receipt moves after the
+        # cumulative-qty attribution join.
+        return f"""
+            SELECT
+                ROW_NUMBER() OVER (
+                    ORDER BY incoming_move_id, source_type, date
+                ) AS id,
+                incoming_move_id,
+                source_type,
+                reference,
+                account_move_id,
+                landed_cost_id,
+                value,
+                currency_id,
+                date
+            FROM ({union}) _src
+        """
