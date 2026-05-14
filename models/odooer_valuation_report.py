@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-import importlib.util
 from datetime import date as date_type
 from odoo import api, fields, models
 from odoo.tools.misc import format_date
-
-_HAS_MRP = bool(importlib.util.find_spec('odoo.addons.mrp'))
 
 
 class OdooerValuationReport(models.Model):
@@ -50,12 +47,6 @@ class OdooerValuationReport(models.Model):
     uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Vendor', readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Receipt', readonly=True)
-    if _HAS_MRP:
-        production_id = fields.Many2one('mrp.production', string='Mfg Order', readonly=True)
-    else:
-        # Placeholder so views referencing production_id don't fail validation
-        # on databases without the mrp module installed.
-        production_id = fields.Integer(string='Mfg Order', readonly=True)
     reference = fields.Char(string='Reference', readonly=True)
     location_dest_id = fields.Many2one('stock.location', string='Location', readonly=True)
     stock_valuation_account_id = fields.Many2one('account.account', string='Stock Account', readonly=True)
@@ -63,7 +54,6 @@ class OdooerValuationReport(models.Model):
     incoming_type = fields.Selection(
         selection=[
             ('purchase', 'Purchase'),
-            ('manufacturing', 'Manufacturing'),
             ('sale_return', 'Sale Return'),
             ('inventory', 'Inventory Adjustment'),
             ('other', 'Other'),
@@ -181,30 +171,22 @@ class OdooerValuationReport(models.Model):
         )
 
     def _manufacturing_case(self):
-        if self._has_column('stock_move', 'production_id'):
-            return """
-                WHEN sm.production_id IS NOT NULL      THEN 'manufacturing'
-                WHEN sm.unbuild_id IS NOT NULL         THEN 'manufacturing'
-                WHEN sm.consume_unbuild_id IS NOT NULL THEN 'manufacturing'"""
+        """Override in odooer_stock_mrp to add WHEN clauses for MRP moves."""
         return ""
 
     def _production_id_sql(self):
-        if self._has_column('stock_move', 'production_id'):
-            return "sm.production_id,"
+        """Override in odooer_stock_mrp to select sm.production_id."""
         return "NULL::integer AS production_id,"
 
     def _mo_name_sql(self):
-        """SQL expression for MO/unbuild name; NULL literal when MRP not installed."""
-        if self._has_column('stock_move', 'production_id'):
-            return "COALESCE(mo.name, ub.name)"
+        """Override in odooer_stock_mrp to return COALESCE(mo.name, ub.name)."""
         return "NULL::varchar"
 
+    def _mrp_joins(self):
+        """Override in odooer_stock_mrp to add mrp_production/mrp_unbuild JOINs."""
+        return ""
+
     def _from(self):
-        mrp_installed = self._has_column('stock_move', 'production_id')
-        mo_join = (
-            "LEFT JOIN mrp_production mo ON mo.id = sm.production_id\n"
-            "            LEFT JOIN mrp_unbuild ub ON ub.id = COALESCE(sm.unbuild_id, sm.consume_unbuild_id)"
-        ) if mrp_installed else ""
         return """
             stock_move sm
             LEFT JOIN consumed_by_incoming cbi ON cbi.incoming_move_id = sm.id
@@ -212,7 +194,7 @@ class OdooerValuationReport(models.Model):
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
             LEFT JOIN product_category pc ON pc.id = pt.categ_id
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
-            {mo_join}
+            {mrp_joins}
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
             LEFT JOIN (
                 SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
@@ -220,7 +202,7 @@ class OdooerValuationReport(models.Model):
                 WHERE sml.state = 'done'
                 GROUP BY sml.move_id
             ) sml_qty ON sml_qty.move_id = sm.id
-        """.format(mo_join=mo_join)
+        """.format(mrp_joins=self._mrp_joins())
 
     def _where(self):
         as_of = self._as_of()

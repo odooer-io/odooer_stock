@@ -26,7 +26,6 @@ class OdooerValuationSource(models.Model):
     source_type = fields.Selection([
         ('manual',       'Manual Adjustment'),
         ('bill',         'Vendor Bill'),
-        ('production',   'Manufacturing'),
         ('quotation',    'PO Quotation'),
         ('return',       'Sale Return'),
         ('landed_cost',  'Landed Cost'),
@@ -125,26 +124,7 @@ class OdooerValuationSource(models.Model):
                 WHERE sval.move_id IS NOT NULL
             """)
 
-        # ── 4. Manufacturing order ────────────────────────────────────────────
-        if self._has_column('stock_move', 'production_id'):
-            parts.append("""
-                SELECT
-                    sm.id::bigint * 10 + 4          AS id,
-                    sm.id                            AS incoming_move_id,
-                    'production'                     AS source_type,
-                    mp.name                          AS reference,
-                    NULL::integer                    AS account_move_id,
-                    NULL::integer                    AS landed_cost_id,
-                    sm.value                         AS value,
-                    comp.currency_id                 AS currency_id,
-                    sm.date                          AS date
-                FROM stock_move  sm
-                JOIN mrp_production mp   ON mp.id   = sm.production_id
-                JOIN res_company   comp ON comp.id  = sm.company_id
-                WHERE sm.is_in = TRUE AND sm.production_id IS NOT NULL
-            """)
-
-        # ── 5. PO quotation (purchase_line exists, no posted bill yet) ────────
+        # ── 4. PO quotation (purchase_line exists, no posted bill yet) ────────
         if (self._has_column('stock_move', 'purchase_line_id')
                 and self._has_table('purchase_order')):
             no_bill_guard = ""
@@ -160,7 +140,7 @@ class OdooerValuationSource(models.Model):
                     )"""
             parts.append(f"""
                 SELECT
-                    sm.id::bigint * 10 + 5           AS id,
+                    sm.id::bigint * 10 + 4           AS id,
                     sm.id                             AS incoming_move_id,
                     'quotation'                       AS source_type,
                     po.name                           AS reference,
@@ -184,10 +164,10 @@ class OdooerValuationSource(models.Model):
                   {no_bill_guard}
             """)
 
-        # ── 6. Sale return (value from original outgoing move) ────────────────
+        # ── 5. Sale return (value from original outgoing move) ────────────────
         parts.append("""
             SELECT
-                sm.id::bigint * 10 + 6              AS id,
+                sm.id::bigint * 10 + 5              AS id,
                 sm.id                                AS incoming_move_id,
                 'return'                             AS source_type,
                 orig.reference                       AS reference,
