@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from . import odooer_product_brand
+from . import odooer_product_group
+from . import product_template
 from . import odooer_fifo_link
 from . import stock_move
 from . import product_product

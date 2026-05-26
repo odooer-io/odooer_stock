@@ -1,4 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_odooer_product_brand_user,odooer_stock.product.brand user,model_odooer_stock_product_brand,stock.group_stock_user,1,0,0,0
+access_odooer_product_brand_manager,odooer_stock.product.brand manager,model_odooer_stock_product_brand,stock.group_stock_manager,1,1,1,1
+access_odooer_product_group_user,odooer_stock.product.group user,model_odooer_stock_product_group,stock.group_stock_user,1,0,0,0
+access_odooer_product_group_manager,odooer_stock.product.group manager,model_odooer_stock_product_group,stock.group_stock_manager,1,1,1,1
 access_odooer_fifo_link_user,odooer.fifo.link user,model_odooer_fifo_link,stock.group_stock_user,1,0,0,0
 access_odooer_fifo_link_manager,odooer.fifo.link manager,model_odooer_fifo_link,stock.group_stock_manager,1,1,1,1
 access_odooer_valuation_report,odooer.valuation.report user,model_odooer_valuation_report,stock.group_stock_user,1,0,0,0

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Extend product.template form view ─────────────────────────────── -->
+    <record id="product_template_form_inherit_odooer" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.odooer</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="brand_id"/>
+                <field name="group_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Extend product.template list view ─────────────────────────────── -->
+    <record id="product_template_list_inherit_odooer" model="ir.ui.view">
+        <field name="name">product.template.list.inherit.odooer</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="brand_id" optional="show"/>
+                <field name="group_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Extend product.template search view ───────────────────────────── -->
+    <record id="product_template_search_inherit_odooer" model="ir.ui.view">
+        <field name="name">product.template.search.inherit.odooer</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <!-- Search fields after categ_id -->
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="brand_id" string="Brand"
+                       filter_domain="[('brand_id.name', 'ilike', self)]"/>
+                <field name="group_id" string="Product Group"
+                       filter_domain="[('group_id.name', 'ilike', self)]"/>
+            </xpath>
+            <!-- Group-by filters inside the existing group element -->
+            <xpath expr="//group/filter[@name='group_by_categ_id']" position="after">
+                <filter string="Brand" name="group_by_brand"
+                        context="{'group_by': 'brand_id'}"/>
+                <filter string="Product Group" name="group_by_product_group"
+                        context="{'group_by': 'group_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

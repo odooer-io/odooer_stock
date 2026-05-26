@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Form view ─────────────────────────────────────────────────────── -->
+    <record id="odooer_product_group_form" model="ir.ui.view">
+        <field name="name">odooer_stock.product.group.form</field>
+        <field name="model">odooer_stock.product.group</field>
+        <field name="arch" type="xml">
+            <form string="Product Group">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(odooer_product_group_action)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-cubes"
+                                context="{'search_default_group_id': active_id}"
+                                invisible="product_count == 0">
+                            <field name="product_count" string="Products" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Group Name"/>
+                        </h1>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── List view ─────────────────────────────────────────────────────── -->
+    <record id="odooer_product_group_list" model="ir.ui.view">
+        <field name="name">odooer_stock.product.group.list</field>
+        <field name="model">odooer_stock.product.group</field>
+        <field name="arch" type="xml">
+            <list string="Product Groups">
+                <field name="name"/>
+                <field name="product_count" string="Products"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ── Search view ───────────────────────────────────────────────────── -->
+    <record id="odooer_product_group_search" model="ir.ui.view">
+        <field name="name">odooer_stock.product.group.search</field>
+        <field name="model">odooer_stock.product.group</field>
+        <field name="arch" type="xml">
+            <search string="Product Groups">
+                <field name="name" string="Group"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Action ────────────────────────────────────────────────────────── -->
+    <record id="odooer_product_group_action" model="ir.actions.act_window">
+        <field name="name">Product Groups</field>
+        <field name="res_model">odooer_stock.product.group</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="odooer_product_group_search"/>
+    </record>
+
+</odoo>

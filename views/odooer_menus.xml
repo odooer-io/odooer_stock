@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ── Product master data under Inventory > Products ───────────────── -->
+    <menuitem id="menu_odooer_product_brand"
+              name="Brands"
+              parent="stock.menu_stock_inventory_control"
+              action="odooer_product_brand_action"
+              sequence="20"/>
+
+    <menuitem id="menu_odooer_product_group"
+              name="Product Groups"
+              parent="stock.menu_stock_inventory_control"
+              action="odooer_product_group_action"
+              sequence="21"/>
+
     <!-- ── Odooer reporting menu ─────────────────────────────────────────── -->
     <menuitem id="menu_odooer_stock_root"
               name="Odooer"
