@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ── Search view ───────────────────────────────────────────────────── -->
+    <record id="odooer_product_brand_search" model="ir.ui.view">
+        <field name="name">odooer_stock.product.brand.search</field>
+        <field name="model">odooer_stock.product.brand</field>
+        <field name="arch" type="xml">
+            <search string="Product Brands">
+                <field name="name" string="Brand"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Action (must be defined before form view uses %(...)d) ────────── -->
+    <record id="odooer_product_brand_action" model="ir.actions.act_window">
+        <field name="name">Product Brands</field>
+        <field name="res_model">odooer_stock.product.brand</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="odooer_product_brand_search"/>
+    </record>
+
     <!-- ── Form view ─────────────────────────────────────────────────────── -->
     <record id="odooer_product_brand_form" model="ir.ui.view">
         <field name="name">odooer_stock.product.brand.form</field>
@@ -43,23 +62,5 @@
         </field>
     </record>
 
-    <!-- ── Search view ───────────────────────────────────────────────────── -->
-    <record id="odooer_product_brand_search" model="ir.ui.view">
-        <field name="name">odooer_stock.product.brand.search</field>
-        <field name="model">odooer_stock.product.brand</field>
-        <field name="arch" type="xml">
-            <search string="Product Brands">
-                <field name="name" string="Brand"/>
-            </search>
-        </field>
-    </record>
-
-    <!-- ── Action ────────────────────────────────────────────────────────── -->
-    <record id="odooer_product_brand_action" model="ir.actions.act_window">
-        <field name="name">Product Brands</field>
-        <field name="res_model">odooer_stock.product.brand</field>
-        <field name="view_mode">list,form</field>
-        <field name="search_view_id" ref="odooer_product_brand_search"/>
-    </record>
 
 </odoo>
