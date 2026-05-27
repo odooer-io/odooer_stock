@@ -52,7 +52,7 @@
         <field name="name">odooer_stock.product.group.list</field>
         <field name="model">odooer_stock.product.group</field>
         <field name="arch" type="xml">
-            <list string="Product Groups" editable="top">
+            <list string="Product Groups" editable="bottom">
                 <field name="name"/>
                 <field name="product_count" string="Products"/>
             </list>
