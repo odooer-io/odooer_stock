@@ -32,7 +32,7 @@
                                 type="action"
                                 class="oe_stat_button"
                                 icon="fa-cubes"
-                                context="{'search_default_group_id': active_id}"
+                                context="{'search_default_group_id': id}"
                                 invisible="product_count == 0">
                             <field name="product_count" string="Products" widget="statinfo"/>
                         </button>
