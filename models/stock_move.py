@@ -89,8 +89,19 @@ class StockMove(models.Model):
         return result
 
     def _init_odooer_remaining_qty(self):
-        """Set odooer_remaining_qty for newly validated incoming moves."""
+        """Set odooer_remaining_qty for newly validated incoming moves.
+
+        Also performs retroactive FIFO correction: if a new incoming arrives
+        with a date/id that places it earlier in the FIFO queue than incomings
+        already consumed by existing outgoing moves, those outgoing links are
+        invalidated and rebuilt in correct FIFO order.  This prevents the
+        "full regeneration" from being needed just to fix ordering violations
+        caused by backdated or late-arrived receipts.
+        """
         cr = self.env.cr
+
+        # Step 1: Set odooer_remaining_qty for all new incomings
+        moves_with_qty = []
         for move in self:
             qty = move._get_valued_qty()
             if qty > 0:
@@ -98,7 +109,80 @@ class StockMove(models.Model):
                     "UPDATE stock_move SET odooer_remaining_qty = %s WHERE id = %s",
                     (qty, move.id),
                 )
+                moves_with_qty.append(move)
+
         self.invalidate_recordset(['odooer_remaining_qty'])
+
+        if not moves_with_qty:
+            return
+
+        # Step 2: For each new incoming, find outgoing moves whose existing
+        # links now violate FIFO order.  A violation exists when an outgoing
+        # move (date >= new incoming's date) consumed from an incoming that is
+        # NEWER than the new incoming (by date, id) — or consumed nothing at
+        # all (overflow link, incoming_move_id IS NULL).
+        affected_out_ids = set()
+        for move in moves_with_qty:
+            cr.execute("""
+                SELECT DISTINCT fl.outgoing_move_id
+                FROM   odooer_fifo_link fl
+                JOIN   stock_move out_sm ON out_sm.id = fl.outgoing_move_id
+                LEFT JOIN stock_move in_sm  ON in_sm.id  = fl.incoming_move_id
+                WHERE  out_sm.product_id = %s
+                  AND  out_sm.company_id = %s
+                  AND  (out_sm.date, out_sm.id) >= (%s, %s)
+                  AND  (
+                         fl.incoming_move_id IS NULL                   -- overflow
+                         OR (in_sm.date, in_sm.id) > (%s, %s)         -- newer incoming used
+                       )
+            """, (
+                move.product_id.id, move.company_id.id,
+                move.date, move.id,
+                move.date, move.id,
+            ))
+            for (out_id,) in cr.fetchall():
+                affected_out_ids.add(out_id)
+
+        if not affected_out_ids:
+            return
+
+        _logger.info(
+            'Odooer FIFO: retroactive re-link triggered for %d outgoing moves '
+            '(late-arriving incoming move(s): %s)',
+            len(affected_out_ids),
+            [m.id for m in moves_with_qty],
+        )
+
+        out_ids_list = list(affected_out_ids)
+
+        # Step 3: Restore odooer_remaining_qty on incomings whose links are
+        # about to be deleted, so the FIFO queue is correct for re-linking.
+        cr.execute("""
+            UPDATE stock_move sm
+            SET    odooer_remaining_qty = odooer_remaining_qty + sub.qty
+            FROM   (
+                SELECT fl.incoming_move_id, SUM(fl.quantity) AS qty
+                FROM   odooer_fifo_link fl
+                WHERE  fl.outgoing_move_id = ANY(%s)
+                  AND  fl.incoming_move_id IS NOT NULL
+                GROUP BY fl.incoming_move_id
+            ) sub
+            WHERE sm.id = sub.incoming_move_id
+        """, (out_ids_list,))
+
+        # Step 4: Delete the now-stale links
+        cr.execute(
+            "DELETE FROM odooer_fifo_link WHERE outgoing_move_id = ANY(%s)",
+            (out_ids_list,),
+        )
+        self.env['stock.move'].invalidate_model(['odooer_remaining_qty'])
+
+        # Step 5: Re-create links for affected outgoing moves in strict FIFO
+        # order (oldest outgoing first) so the queue is consumed correctly.
+        affected_moves = self.env['stock.move'].browse(out_ids_list).sorted(
+            key=lambda m: (m.date, m.id)
+        )
+        affected_moves._create_odooer_fifo_links()
 
     def _create_odooer_fifo_links(self):
         """
