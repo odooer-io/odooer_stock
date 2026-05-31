@@ -55,6 +55,7 @@ class OdooerValuationReport(models.Model):
         selection=[
             ('purchase', 'Purchase'),
             ('sale_return', 'Sale Return'),
+            ('unlinked_return', 'Customer Receipt (Unlinked)'),
             ('inventory', 'Inventory Adjustment'),
             ('other', 'Other'),
         ],
@@ -160,7 +161,10 @@ class OdooerValuationReport(models.Model):
             CASE
                 WHEN sm.purchase_line_id IS NOT NULL            THEN 'purchase'
                 {manufacturing_case}
-                WHEN src_loc.usage = 'customer'                 THEN 'sale_return'
+                WHEN src_loc.usage = 'customer'
+                    AND (sm.sale_line_id IS NOT NULL
+                         OR orig.sale_line_id IS NOT NULL)  THEN 'sale_return'
+                WHEN src_loc.usage = 'customer'             THEN 'unlinked_return'
                 WHEN src_loc.usage = 'inventory'                THEN 'inventory'
                 ELSE 'other'
             END                                                                    AS incoming_type
@@ -196,6 +200,7 @@ class OdooerValuationReport(models.Model):
             LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
             {mrp_joins}
             LEFT JOIN stock_location src_loc ON src_loc.id = sm.location_id
+            LEFT JOIN stock_move orig ON orig.id = sm.origin_returned_move_id
             LEFT JOIN (
                 SELECT sml.move_id, SUM(sml.quantity_product_uom) AS qty
                 FROM stock_move_line sml
