@@ -234,7 +234,7 @@ BEGIN
         -- (or standard_price if the stack was completely empty)
         IF v_remaining > 0.0000001 THEN
             IF v_last_unit_cost IS NULL THEN
-                SELECT COALESCE(standard_price, 0) INTO v_std_price
+                SELECT COALESCE((standard_price->>(p_company_id::text))::numeric, 0) INTO v_std_price
                 FROM product_template pt
                 JOIN product_product pp ON pp.product_tmpl_id = pt.id
                 WHERE pp.id = v_out.product_id
