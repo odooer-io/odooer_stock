@@ -27,6 +27,7 @@ class OdooerOutgoingReport(models.Model):
     uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Partner', readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Picking', readonly=True)
+    stock_valuation_account_id = fields.Many2one('account.account', string='Stock Account', readonly=True)
     reference = fields.Char(string='Reference', readonly=True)
     outgoing_date = fields.Date(string='Outgoing Date', readonly=True)
     incoming_date = fields.Date(string='Incoming Date', readonly=True)
@@ -64,6 +65,16 @@ class OdooerOutgoingReport(models.Model):
             pt.uom_id,
             sp.partner_id,
             out_sm.picking_id,
+            COALESCE(
+                (pc.property_stock_valuation_account_id->>(fl.company_id::text))::integer,
+                (SELECT (idef.json_value)::integer
+                 FROM ir_default idef
+                 JOIN ir_model_fields imf ON imf.id = idef.field_id
+                 WHERE imf.model = 'product.category'
+                   AND imf.name = 'property_stock_valuation_account_id'
+                   AND idef.company_id = fl.company_id
+                 LIMIT 1)
+            )                                                       AS stock_valuation_account_id,
             COALESCE(sp.name, out_sm.reference)                     AS reference,
             out_sm.date::date                                       AS outgoing_date,
             fl.incoming_date::date                                  AS incoming_date,
@@ -87,6 +98,7 @@ class OdooerOutgoingReport(models.Model):
             INNER JOIN stock_move out_sm ON out_sm.id = fl.outgoing_move_id
             INNER JOIN product_product pp ON pp.id = fl.product_id
             INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            LEFT JOIN product_category pc ON pc.id = pt.categ_id
             LEFT JOIN stock_picking sp ON sp.id = out_sm.picking_id
             LEFT JOIN stock_location dest_loc ON dest_loc.id = out_sm.location_dest_id
         """
