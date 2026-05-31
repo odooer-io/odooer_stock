@@ -100,48 +100,52 @@ class StockMove(models.Model):
         """
         cr = self.env.cr
 
-        # Step 1: Set odooer_remaining_qty for all new incomings
+        # Step 1: Set odooer_remaining_qty for all new incomings in one batch
         moves_with_qty = []
+        qty_updates = []
         for move in self:
             qty = move._get_valued_qty()
             if qty > 0:
-                cr.execute(
-                    "UPDATE stock_move SET odooer_remaining_qty = %s WHERE id = %s",
-                    (qty, move.id),
-                )
                 moves_with_qty.append(move)
+                qty_updates.append((qty, move.id))
 
+        if qty_updates:
+            cr.executemany(
+                "UPDATE stock_move SET odooer_remaining_qty = %s WHERE id = %s",
+                qty_updates,
+            )
         self.invalidate_recordset(['odooer_remaining_qty'])
 
         if not moves_with_qty:
             return
 
-        # Step 2: For each new incoming, find outgoing moves whose existing
-        # links now violate FIFO order.  A violation exists when an outgoing
-        # move (date >= new incoming's date) consumed from an incoming that is
-        # NEWER than the new incoming (by date, id) — or consumed nothing at
-        # all (overflow link, incoming_move_id IS NULL).
-        affected_out_ids = set()
-        for move in moves_with_qty:
-            cr.execute("""
-                SELECT DISTINCT fl.outgoing_move_id
-                FROM   odooer_fifo_link fl
-                JOIN   stock_move out_sm ON out_sm.id = fl.outgoing_move_id
-                LEFT JOIN stock_move in_sm  ON in_sm.id  = fl.incoming_move_id
-                WHERE  out_sm.product_id = %s
-                  AND  out_sm.company_id = %s
-                  AND  (out_sm.date, out_sm.id) >= (%s, %s)
-                  AND  (
-                         fl.incoming_move_id IS NULL                   -- overflow
-                         OR (in_sm.date, in_sm.id) > (%s, %s)         -- newer incoming used
-                       )
-            """, (
-                move.product_id.id, move.company_id.id,
-                move.date, move.id,
-                move.date, move.id,
-            ))
-            for (out_id,) in cr.fetchall():
-                affected_out_ids.add(out_id)
+        # Step 2: Single batched query — join all new incomings as a VALUES
+        # table so we only hit the DB once regardless of receipt size.
+        # A violation exists when an outgoing move (date >= new incoming's date)
+        # consumed from an incoming NEWER than the new one, or had an overflow
+        # link (incoming_move_id IS NULL).
+        rows_sql = ', '.join(
+            ['(%s::int, %s::int, %s::timestamp, %s::int)'] * len(moves_with_qty)
+        )
+        params = []
+        for m in moves_with_qty:
+            params.extend([m.product_id.id, m.company_id.id, m.date, m.id])
+
+        cr.execute(f"""
+            SELECT DISTINCT fl.outgoing_move_id
+            FROM   odooer_fifo_link fl
+            JOIN   stock_move out_sm ON out_sm.id = fl.outgoing_move_id
+            LEFT JOIN stock_move in_sm ON in_sm.id = fl.incoming_move_id
+            JOIN (VALUES {rows_sql}) AS new_in(product_id, company_id, in_date, in_id)
+              ON  out_sm.product_id = new_in.product_id
+             AND  out_sm.company_id = new_in.company_id
+             AND  (out_sm.date, out_sm.id) >= (new_in.in_date, new_in.in_id)
+             AND  (
+                    fl.incoming_move_id IS NULL                       -- overflow
+                    OR (in_sm.date, in_sm.id) > (new_in.in_date, new_in.in_id)
+                  )
+        """, params)
+        affected_out_ids = {row[0] for row in cr.fetchall()}
 
         if not affected_out_ids:
             return
