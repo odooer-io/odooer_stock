@@ -133,7 +133,7 @@ class OdooerGpReport(models.Model):
                 rec.moved_qty_display = f"{uom_qty} {order_uom}".strip()
             else:
                 prod_qty = _fmt(rec.moved_qty)
-                rec.moved_qty_display = f"{uom_qty} {order_uom} and {prod_qty} {prod_uom}"
+                rec.moved_qty_display = f"{uom_qty} {order_uom} = {prod_qty} {prod_uom}"
 
     def _compute_detail_records(self):
         """Load invoices, delivery moves and FIFO links for the detail dialog."""
@@ -306,9 +306,11 @@ class OdooerGpReport(models.Model):
             pt.uom_id                                                        AS moved_uom_id,
             SUM(COALESCE(cost.moved_qty, 0))
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS moved_uom_qty,
-            COALESCE(SUM(sale.invoiced_qty), 0)
+            ROUND((
+                COALESCE(SUM(sale.invoiced_qty), 0)
                 - SUM(COALESCE(cost.moved_qty, 0))
-                * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS qty_diff,
+                * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)
+            )::numeric, 6)                                                   AS qty_diff,
             SUM(cost.cogs)                                                   AS cogs,
             SUM(COALESCE(sale.invoiced_total, 0) - COALESCE(cost.cogs, 0))   AS gp
         """
