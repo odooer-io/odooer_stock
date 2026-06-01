@@ -57,7 +57,22 @@ class OdooerGpReport(models.Model):
         string='Revenue', digits='Product Price', readonly=True,
     )
     moved_qty = fields.Float(
+        string='Delivered Qty (Product UoM)', digits='Product Unit of Measure', readonly=True,
+    )
+    moved_uom_id = fields.Many2one(
+        'uom.uom', string='Product UoM', readonly=True,
+    )
+    moved_uom_qty = fields.Float(
         string='Delivered Qty', digits='Product Unit of Measure', readonly=True,
+        help="Delivered quantity expressed in the ordered unit of measure (uom_id).",
+    )
+    qty_diff = fields.Float(
+        string='Invoiced − Delivered', digits='Product Unit of Measure', readonly=True,
+        help="Invoiced Qty minus Delivered Qty (both in ordered UoM). "
+             "Positive = more invoiced than delivered; Negative = more delivered than invoiced.",
+    )
+    moved_qty_display = fields.Char(
+        string='Delivered Qty', compute='_compute_moved_qty_display', readonly=True,
     )
     cogs = fields.Float(
         string='COGS', digits='Product Price', readonly=True,
@@ -99,6 +114,26 @@ class OdooerGpReport(models.Model):
     def _compute_margin_pct(self):
         for rec in self:
             rec.margin_pct = (rec.gp / rec.invoiced_total * 100) if rec.invoiced_total else 0.0
+
+    @api.depends('moved_uom_qty', 'uom_id', 'moved_qty', 'moved_uom_id')
+    def _compute_moved_qty_display(self):
+        def _fmt(qty):
+            qty = qty or 0.0
+            n = round(qty, 6)
+            if n == int(n):
+                return str(int(n))
+            s = f"{n:.6f}".rstrip('0')
+            return s
+
+        for rec in self:
+            order_uom = rec.uom_id.name or ''
+            prod_uom = rec.moved_uom_id.name or ''
+            uom_qty = _fmt(rec.moved_uom_qty)
+            if not prod_uom or order_uom == prod_uom:
+                rec.moved_qty_display = f"{uom_qty} {order_uom}".strip()
+            else:
+                prod_qty = _fmt(rec.moved_qty)
+                rec.moved_qty_display = f"{uom_qty} {order_uom} and {prod_qty} {prod_uom}"
 
     def _compute_detail_records(self):
         """Load invoices, delivery moves and FIFO links for the detail dialog."""
@@ -268,6 +303,12 @@ class OdooerGpReport(models.Model):
             SUM(sale.invoiced_qty)                                           AS invoiced_qty,
             SUM(sale.invoiced_total)                                         AS invoiced_total,
             SUM(cost.moved_qty)                                              AS moved_qty,
+            pt.uom_id                                                        AS moved_uom_id,
+            SUM(COALESCE(cost.moved_qty, 0))
+                * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS moved_uom_qty,
+            COALESCE(SUM(sale.invoiced_qty), 0)
+                - SUM(COALESCE(cost.moved_qty, 0))
+                * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS qty_diff,
             SUM(cost.cogs)                                                   AS cogs,
             SUM(COALESCE(sale.invoiced_total, 0) - COALESCE(cost.cogs, 0))   AS gp
         """
@@ -285,6 +326,8 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cogs_acct_default cad
                    ON cad.company_id = COALESCE(sale.company_id, so.company_id)
             LEFT JOIN cost ON sol.id = cost.sale_line_id
+            LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
+            LEFT JOIN uom_uom order_uom ON order_uom.id = sol.product_uom_id
         """
 
     def _where(self):
@@ -296,7 +339,8 @@ class OdooerGpReport(models.Model):
     def _group_by(self):
         return (
             "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
-            "pt.categ_id, pt.type, sol.product_uom_id, sol.product_uom_qty, "
+            "pt.categ_id, pt.type, pt.uom_id, sol.product_uom_id, sol.product_uom_qty, "
+            "prod_uom.factor, order_uom.factor, "
             "pc.property_account_expense_categ_id, "
             "pc2.property_account_expense_categ_id, "
             "pc3.property_account_expense_categ_id, "

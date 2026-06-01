@@ -29,7 +29,7 @@
                     <group>
                         <group string="Quantities">
                             <field name="invoiced_qty" readonly="1"/>
-                            <field name="moved_qty" string="Delivered Qty" readonly="1"/>
+                            <field name="moved_qty_display" string="Delivered Qty" readonly="1"/>
                         </group>
                         <group string="Financials">
                             <field name="invoiced_total" string="Revenue" readonly="1"
@@ -136,7 +136,8 @@
                 <field name="ordered_qty" sum="Ordered Qty" optional="hide"/>
                 <field name="invoiced_total" sum="Total Revenue" widget="monetary"
                        options="{'currency_field': 'currency_id'}"/>
-                <field name="moved_qty" sum="Delivered Qty" optional="hide"/>
+                <field name="moved_uom_qty" string="Delivered Qty" sum="Delivered Qty" optional="show"/>
+                <field name="moved_qty" string="Delivered Qty (Product UoM)" sum="Delivered Qty (Product UoM)" optional="hide"/>
                 <field name="cogs" sum="Total COGS" widget="monetary"
                        options="{'currency_field': 'currency_id'}"/>
                 <field name="gp" sum="Total GP" widget="monetary"
@@ -194,6 +195,13 @@
                         domain="[('moved_qty', '!=', 0)]"/>
                 <filter string="Not Delivered" name="not_delivered"
                         domain="['|', ('moved_qty', '=', 0), ('moved_qty', '=', False)]"/>
+                <separator/>
+                <filter string="Invoiced &lt; Delivered" name="qty_under"
+                        domain="[('qty_diff', '&lt;', 0)]"/>
+                <filter string="Invoiced = Delivered" name="qty_matched"
+                        domain="[('qty_diff', '=', 0)]"/>
+                <filter string="Invoiced &gt; Delivered" name="qty_over"
+                        domain="[('qty_diff', '&gt;', 0)]"/>
                 <separator/>
                 <filter string="Profitable" name="profitable"
                         domain="[('gp', '&gt;', 0)]"/>
