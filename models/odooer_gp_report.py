@@ -74,6 +74,18 @@ class OdooerGpReport(models.Model):
     moved_qty_display = fields.Char(
         string='Delivered Qty', compute='_compute_moved_qty_display', readonly=True,
     )
+    post_period_invoiced_qty = fields.Float(
+        string='Post-Period Invoiced', digits='Product Unit of Measure', readonly=True,
+        help="Invoiced quantity between the report end date and today.",
+    )
+    post_period_revenue = fields.Float(
+        string='Post-Period Revenue', digits='Product Price', readonly=True,
+        help="Revenue from invoices between the report end date and today.",
+    )
+    expected_revenue = fields.Float(
+        string='Expected Revenue', digits='Product Price', readonly=True,
+        help="Delivered-but-not-invoiced qty (as of report end) × unit sale price.",
+    )
     post_period_delivered_qty = fields.Float(
         string='Post-Period Delivered', digits='Product Unit of Measure', readonly=True,
         help="Delivered quantity (in ordered UoM) between the report end date and today.",
@@ -239,6 +251,39 @@ class OdooerGpReport(models.Model):
                   AND aml.date BETWEEN '{start}' AND '{end}'
                 GROUP BY ilr.order_line_id, aml.company_id, aml.account_id
             ),
+            -- All invoiced up to and including report end (includes pre-period)
+            sale_upto_end AS (
+                SELECT
+                    ilr.order_line_id AS sale_line_id,
+                    SUM(
+                        CASE am.move_type WHEN 'out_refund' THEN -1 ELSE 1 END
+                        * aml.quantity
+                    ) AS invoiced_qty
+                FROM account_move_line aml
+                INNER JOIN sale_order_line_invoice_rel ilr
+                        ON ilr.invoice_line_id = aml.id
+                INNER JOIN account_move am ON am.id = aml.move_id
+                WHERE am.state = 'posted'
+                  AND aml.date <= '{end}'
+                GROUP BY ilr.order_line_id
+            ),
+            -- Invoiced after report end (post-period)
+            sale_post AS (
+                SELECT
+                    ilr.order_line_id AS sale_line_id,
+                    SUM(
+                        CASE am.move_type WHEN 'out_refund' THEN -1 ELSE 1 END
+                        * aml.quantity
+                    ) AS invoiced_qty,
+                    SUM(aml.balance * -1) AS invoiced_total
+                FROM account_move_line aml
+                INNER JOIN sale_order_line_invoice_rel ilr
+                        ON ilr.invoice_line_id = aml.id
+                INNER JOIN account_move am ON am.id = aml.move_id
+                WHERE am.state = 'posted'
+                  AND aml.date > '{end}'
+                GROUP BY ilr.order_line_id
+            ),
             -- All relevant done moves (no date filter) — partitioned below
             cost_moves AS (
                 SELECT
@@ -291,11 +336,12 @@ class OdooerGpReport(models.Model):
                 WHERE move_date > '{end}'
                 GROUP BY sale_line_id
             ),
-            -- All-time deliveries (for computing still-undelivered qty)
-            cost_total AS (
+            -- All delivered up to and including report end (includes pre-period)
+            cost_upto_end AS (
                 SELECT sale_line_id,
                        SUM(moved_qty) AS moved_qty
                 FROM cost_moves
+                WHERE move_date <= '{end}'
                 GROUP BY sale_line_id
             ),
             -- Company-wide fallback COGS account (ir.default)
@@ -346,16 +392,26 @@ class OdooerGpReport(models.Model):
             )::numeric, 6)                                                   AS qty_diff,
             SUM(cost.cogs)                                                   AS cogs,
             SUM(COALESCE(sale.invoiced_total, 0) - COALESCE(cost.cogs, 0))   AS gp,
+            -- Post-period invoiced qty (ordered UoM)
+            SUM(COALESCE(sale_post.invoiced_qty, 0))                         AS post_period_invoiced_qty,
+            -- Post-period revenue
+            SUM(COALESCE(sale_post.invoiced_total, 0))                       AS post_period_revenue,
+            -- Expected Revenue: delivered-but-not-invoiced qty (up to end) × unit price
+            GREATEST(0.0,
+                COALESCE(SUM(cost_upto_end.moved_qty), 0)
+                    * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)
+                - COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
+            ) * COALESCE(sol.price_reduce_taxexcl, 0.0)                      AS expected_revenue,
             -- Post-period delivered qty (in ordered UoM)
             SUM(COALESCE(cost_post.moved_qty, 0))
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
             -- Post-period COGS
             SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
-            -- Expected COGS: still-undelivered qty (as of today) × standard cost
+            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × standard cost
             GREATEST(0.0,
-                sol.product_uom_qty
+                COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
-                - COALESCE(SUM(cost_total.moved_qty), 0)
+                - COALESCE(SUM(cost_upto_end.moved_qty), 0)
             ) * COALESCE(
                 (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
                 0.0
@@ -375,8 +431,10 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cogs_acct_default cad
                    ON cad.company_id = COALESCE(sale.company_id, so.company_id)
             LEFT JOIN cost ON sol.id = cost.sale_line_id
-            LEFT JOIN cost_post  ON sol.id = cost_post.sale_line_id
-            LEFT JOIN cost_total ON sol.id = cost_total.sale_line_id
+            LEFT JOIN cost_post    ON sol.id = cost_post.sale_line_id
+            LEFT JOIN cost_upto_end ON sol.id = cost_upto_end.sale_line_id
+            LEFT JOIN sale_upto_end ON sol.id = sale_upto_end.sale_line_id
+            LEFT JOIN sale_post    ON sol.id = sale_post.sale_line_id
             LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
             LEFT JOIN uom_uom order_uom ON order_uom.id = sol.product_uom_id
         """
@@ -391,6 +449,7 @@ class OdooerGpReport(models.Model):
         return (
             "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
             "pt.categ_id, pt.type, pt.uom_id, sol.product_uom_id, sol.product_uom_qty, "
+            "sol.price_reduce_taxexcl, "
             "prod_uom.factor, order_uom.factor, "
             "pp.standard_price, "
             "pc.property_account_expense_categ_id, "
