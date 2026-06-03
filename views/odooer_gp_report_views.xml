@@ -29,12 +29,17 @@
                     <group>
                         <group string="Quantities">
                             <field name="invoiced_qty" readonly="1"/>
-                            <field name="moved_qty_display" string="Delivered Qty" readonly="1"/>
+                            <field name="moved_qty_display" string="Delivered Qty (Period)" readonly="1"/>
+                            <field name="post_period_delivered_qty" string="Post-Period Delivered" readonly="1"/>
                         </group>
                         <group string="Financials">
                             <field name="invoiced_total" string="Revenue" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="cogs" string="COGS" readonly="1"
+                            <field name="cogs" string="COGS (Period)" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="post_period_cogs" string="Post-Period COGS" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="expected_cogs" string="Expected COGS" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="gp" string="Gross Profit" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
@@ -138,8 +143,17 @@
                        options="{'currency_field': 'currency_id'}"/>
                 <field name="moved_uom_qty" string="Delivered Qty" sum="Delivered Qty" optional="show"/>
                 <field name="moved_qty" string="Delivered Qty (Product UoM)" sum="Delivered Qty (Product UoM)" optional="hide"/>
+                <field name="qty_diff" string="Invoiced vs Delivered" sum="Invoiced vs Delivered" optional="hide"/>
                 <field name="cogs" sum="Total COGS" widget="monetary"
                        options="{'currency_field': 'currency_id'}"/>
+                <field name="post_period_delivered_qty" string="Post-Period Delivered"
+                       sum="Post-Period Delivered" optional="show"/>
+                <field name="post_period_cogs" string="Post-Period COGS"
+                       sum="Post-Period COGS" widget="monetary"
+                       options="{'currency_field': 'currency_id'}" optional="show"/>
+                <field name="expected_cogs" string="Expected COGS"
+                       sum="Expected COGS" widget="monetary"
+                       options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="gp" sum="Total GP" widget="monetary"
                        options="{'currency_field': 'currency_id'}"/>
                 <field name="currency_id" column_invisible="1"/>

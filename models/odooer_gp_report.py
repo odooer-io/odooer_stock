@@ -74,6 +74,18 @@ class OdooerGpReport(models.Model):
     moved_qty_display = fields.Char(
         string='Delivered Qty', compute='_compute_moved_qty_display', readonly=True,
     )
+    post_period_delivered_qty = fields.Float(
+        string='Post-Period Delivered', digits='Product Unit of Measure', readonly=True,
+        help="Delivered quantity (in ordered UoM) between the report end date and today.",
+    )
+    post_period_cogs = fields.Float(
+        string='Post-Period COGS', digits='Product Price', readonly=True,
+        help="FIFO cost for deliveries between the report end date and today.",
+    )
+    expected_cogs = fields.Float(
+        string='Expected COGS', digits='Product Price', readonly=True,
+        help="Standard cost × qty still undelivered as of today (ordered qty − all-time delivered).",
+    )
     cogs = fields.Float(
         string='COGS', digits='Product Price', readonly=True,
         help="Cost of Goods Sold — FIFO cost attributed to deliveries in this period.",
@@ -227,20 +239,18 @@ class OdooerGpReport(models.Model):
                   AND aml.date BETWEEN '{start}' AND '{end}'
                 GROUP BY ilr.order_line_id, aml.company_id, aml.account_id
             ),
-            cost AS (
+            -- All relevant done moves (no date filter) — partitioned below
+            cost_moves AS (
                 SELECT
-                    COALESCE(sm.sale_line_id, orig.sale_line_id)                 AS sale_line_id,
-                    SUM(
-                        CASE WHEN sm.is_out THEN 1 ELSE -1 END
-                        * COALESCE(sml_qty.qty, 0)
-                    )                                                            AS moved_qty,
-                    SUM(
-                        CASE WHEN sm.is_out
-                             THEN COALESCE(fl_agg.fifo_value, 0)
-                             ELSE sm.value
-                        END
-                        * CASE WHEN sm.is_out THEN 1 ELSE -1 END
-                    )                                                            AS cogs
+                    COALESCE(sm.sale_line_id, orig.sale_line_id)             AS sale_line_id,
+                    sm.date::date                                             AS move_date,
+                    CASE WHEN sm.is_out THEN 1 ELSE -1 END
+                        * COALESCE(sml_qty.qty, 0)                           AS moved_qty,
+                    (CASE WHEN sm.is_out
+                          THEN COALESCE(fl_agg.fifo_value, 0)
+                          ELSE sm.value
+                     END
+                     * CASE WHEN sm.is_out THEN 1 ELSE -1 END)               AS cogs_value
                 FROM stock_move sm
                 JOIN stock_location sl_src ON sl_src.id = sm.location_id
                 LEFT JOIN stock_move orig ON orig.id = sm.origin_returned_move_id
@@ -256,14 +266,37 @@ class OdooerGpReport(models.Model):
                     GROUP BY outgoing_move_id
                 ) fl_agg ON fl_agg.outgoing_move_id = sm.id
                 WHERE sm.state = 'done'
-                  AND sm.date::date BETWEEN '{start}' AND '{end}'
                   AND (
                       (sm.is_out = TRUE AND sm.sale_line_id IS NOT NULL)
                       OR
                       (sm.is_in = TRUE AND sl_src.usage = 'customer'
                        AND (sm.sale_line_id IS NOT NULL OR orig.sale_line_id IS NOT NULL))
                   )
-                GROUP BY COALESCE(sm.sale_line_id, orig.sale_line_id)
+            ),
+            -- In-period deliveries
+            cost AS (
+                SELECT sale_line_id,
+                       SUM(moved_qty)  AS moved_qty,
+                       SUM(cogs_value) AS cogs
+                FROM cost_moves
+                WHERE move_date BETWEEN '{start}' AND '{end}'
+                GROUP BY sale_line_id
+            ),
+            -- Post-period deliveries (end+1 day → today)
+            cost_post AS (
+                SELECT sale_line_id,
+                       SUM(moved_qty)  AS moved_qty,
+                       SUM(cogs_value) AS cogs
+                FROM cost_moves
+                WHERE move_date > '{end}'
+                GROUP BY sale_line_id
+            ),
+            -- All-time deliveries (for computing still-undelivered qty)
+            cost_total AS (
+                SELECT sale_line_id,
+                       SUM(moved_qty) AS moved_qty
+                FROM cost_moves
+                GROUP BY sale_line_id
             ),
             -- Company-wide fallback COGS account (ir.default)
             cogs_acct_default AS (
@@ -312,7 +345,21 @@ class OdooerGpReport(models.Model):
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)
             )::numeric, 6)                                                   AS qty_diff,
             SUM(cost.cogs)                                                   AS cogs,
-            SUM(COALESCE(sale.invoiced_total, 0) - COALESCE(cost.cogs, 0))   AS gp
+            SUM(COALESCE(sale.invoiced_total, 0) - COALESCE(cost.cogs, 0))   AS gp,
+            -- Post-period delivered qty (in ordered UoM)
+            SUM(COALESCE(cost_post.moved_qty, 0))
+                * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
+            -- Post-period COGS
+            SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
+            -- Expected COGS: still-undelivered qty (as of today) × standard cost
+            GREATEST(0.0,
+                sol.product_uom_qty
+                    * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
+                - COALESCE(SUM(cost_total.moved_qty), 0)
+            ) * COALESCE(
+                (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
+                0.0
+            )                                                                AS expected_cogs
         """
 
     def _from(self):
@@ -328,6 +375,8 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cogs_acct_default cad
                    ON cad.company_id = COALESCE(sale.company_id, so.company_id)
             LEFT JOIN cost ON sol.id = cost.sale_line_id
+            LEFT JOIN cost_post  ON sol.id = cost_post.sale_line_id
+            LEFT JOIN cost_total ON sol.id = cost_total.sale_line_id
             LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
             LEFT JOIN uom_uom order_uom ON order_uom.id = sol.product_uom_id
         """
@@ -343,6 +392,7 @@ class OdooerGpReport(models.Model):
             "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
             "pt.categ_id, pt.type, pt.uom_id, sol.product_uom_id, sol.product_uom_qty, "
             "prod_uom.factor, order_uom.factor, "
+            "pp.standard_price, "
             "pc.property_account_expense_categ_id, "
             "pc2.property_account_expense_categ_id, "
             "pc3.property_account_expense_categ_id, "
