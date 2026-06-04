@@ -397,10 +397,12 @@ class OdooerGpReport(models.Model):
             -- Post-period revenue
             SUM(COALESCE(sale_post.invoiced_total, 0))                       AS post_period_revenue,
             -- Expected Revenue: delivered-but-not-invoiced qty (up to end) × unit price
+            -- Uses total invoiced as of today (incl. post-period) to avoid false positives
             GREATEST(0.0,
                 COALESCE(SUM(cost_upto_end.moved_qty), 0)
                     * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)
-                - COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
+                - (COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
+                   + COALESCE(SUM(sale_post.invoiced_qty), 0))
             ) * COALESCE(sol.price_reduce_taxexcl, 0.0)                      AS expected_revenue,
             -- Post-period delivered qty (in ordered UoM)
             SUM(COALESCE(cost_post.moved_qty, 0))

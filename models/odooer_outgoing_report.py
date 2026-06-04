@@ -34,6 +34,7 @@ class OdooerOutgoingReport(models.Model):
     outgoing_usage = fields.Selection(
         selection=[
             ('sale', 'Sale / Delivery'),
+            ('sale_unlinked', 'Sale / Delivery (Unlinked)'),
             ('purchase_return', 'Purchase Return'),
             ('scrap', 'Scrap'),
             ('manufacturing', 'Manufacturing'),
@@ -84,7 +85,10 @@ class OdooerOutgoingReport(models.Model):
             CASE
                 WHEN out_sm.scrap_id IS NOT NULL                    THEN 'scrap'
                 WHEN dest_loc.usage = 'supplier'                    THEN 'purchase_return'
-                WHEN dest_loc.usage = 'customer'                    THEN 'sale'
+                WHEN dest_loc.usage = 'customer'
+                     AND out_sm.sale_line_id IS NOT NULL            THEN 'sale'
+                WHEN dest_loc.usage = 'customer'
+                     AND out_sm.sale_line_id IS NULL                THEN 'sale_unlinked'
                 WHEN dest_loc.usage = 'production'                  THEN 'manufacturing'
                 WHEN dest_loc.usage = 'inventory'                   THEN 'inventory'
                 WHEN dest_loc.usage = 'internal'                    THEN 'internal'

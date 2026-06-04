@@ -56,6 +56,8 @@
                 <separator/>
                 <filter string="Sale / Delivery" name="sale"
                         domain="[('outgoing_usage', '=', 'sale')]"/>
+                <filter string="Sale / Delivery (Unlinked)" name="sale_unlinked"
+                        domain="[('outgoing_usage', '=', 'sale_unlinked')]"/>
                 <filter string="Purchase Return" name="purchase_return"
                         domain="[('outgoing_usage', '=', 'purchase_return')]"/>
                 <filter string="Scrap" name="scrap"
