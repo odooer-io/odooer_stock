@@ -98,6 +98,10 @@ class OdooerGpReport(models.Model):
         string='Expected COGS', digits='Product Price', readonly=True,
         help="Invoiced unit cost × qty still undelivered as of today (invoiced upto end − delivered upto end).",
     )
+    undelivered_revenue = fields.Float(
+        string='Revenue for Undelivered', digits='Product Price', readonly=True,
+        help="Invoiced unit price × qty still undelivered (invoiced upto end − delivered upto end).",
+    )
     invoiced_price = fields.Float(
         string='Invoiced Unit Price', digits='Product Price', readonly=True,
         help="Average unit sale price from invoice lines (revenue / invoiced qty).",
@@ -485,6 +489,15 @@ class OdooerGpReport(models.Model):
                 SUM(cogs_invoice.cogs_total) / NULLIF(SUM(sale.invoiced_qty), 0),
                 0.0
             )                                                                    AS expected_cogs,
+            -- Revenue for undelivered qty: invoiced-but-not-delivered × invoiced unit price
+            GREATEST(0.0,
+                COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
+                    * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
+                - COALESCE(SUM(cost_upto_end.moved_qty), 0)
+            ) * CASE WHEN SUM(sale.invoiced_qty) != 0
+                     THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
+                     ELSE 0.0
+                END                                                                 AS undelivered_revenue,
             -- Invoiced unit price (average sale price across all invoice lines)
             CASE WHEN SUM(sale.invoiced_qty) != 0
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)

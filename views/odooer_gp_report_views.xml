@@ -46,6 +46,8 @@
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="expected_cogs" string="Expected COGS" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="undelivered_revenue" string="Revenue for Undelivered" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="invoiced_price" string="Invoiced Unit Price" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="invoiced_cost" string="Invoiced Unit Cost" readonly="1"
@@ -174,6 +176,8 @@
                 <field name="expected_cogs" string="Expected COGS"
                        sum="Expected COGS" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
+                <field name="undelivered_revenue" string="Revenue for Undelivered" optional="hide"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="invoiced_price" string="Invoiced Unit Price" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="invoiced_cost" string="Invoiced Unit Cost" optional="hide"
