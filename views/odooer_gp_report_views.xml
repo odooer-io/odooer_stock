@@ -144,6 +144,7 @@
                 <field name="partner_id" optional="show"/>
                 <field name="product_id" optional="show"/>
                 <field name="categ_id" optional="hide"/>
+                <field name="uom_id" string="Unit" optional="hide"/>
                 <field name="account_id" optional="show"/>
                 <field name="cogs_account_id" optional="hide"/>
                 <field name="invoiced_qty" sum="Invoiced Qty"/>

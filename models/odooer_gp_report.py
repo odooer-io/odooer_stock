@@ -431,11 +431,11 @@ class OdooerGpReport(models.Model):
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
                  ELSE 0.0
             END                                                                 AS invoiced_price,
-            -- Product standard cost (JSONB, company-dependent)
+            -- Product standard cost (JSONB, company-dependent), converted from product UoM to order UoM
             COALESCE(
                 (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
                 0.0
-            )                                                                    AS standard_price
+            ) * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)       AS standard_price
         """
 
     def _from(self):
