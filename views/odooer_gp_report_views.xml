@@ -48,6 +48,8 @@
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="invoiced_price" string="Invoiced Unit Price" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="invoiced_cost" string="Invoiced Unit Cost" readonly="1"
+                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="standard_price" string="Standard Cost" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="gp" string="Gross Profit" readonly="1"
@@ -173,6 +175,8 @@
                        sum="Expected COGS" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="invoiced_price" string="Invoiced Unit Price" optional="hide"
+                       widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="invoiced_cost" string="Invoiced Unit Cost" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="standard_price" string="Standard Cost" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>

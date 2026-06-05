@@ -96,15 +96,19 @@ class OdooerGpReport(models.Model):
     )
     expected_cogs = fields.Float(
         string='Expected COGS', digits='Product Price', readonly=True,
-        help="Invoiced unit price × qty still undelivered as of today (invoiced upto end − delivered upto end).",
+        help="Invoiced unit cost × qty still undelivered as of today (invoiced upto end − delivered upto end).",
     )
     invoiced_price = fields.Float(
         string='Invoiced Unit Price', digits='Product Price', readonly=True,
-        help="Average unit price from invoice lines (revenue / invoiced qty).",
+        help="Average unit sale price from invoice lines (revenue / invoiced qty).",
+    )
+    invoiced_cost = fields.Float(
+        string='Invoiced Unit Cost', digits='Product Price', readonly=True,
+        help="Product standard cost per ordered UoM, used for expected COGS calculation.",
     )
     standard_price = fields.Float(
         string='Standard Cost', digits='Product Price', readonly=True,
-        help="Product standard cost from the product form.",
+        help="Product standard cost from the product form, converted to order UoM.",
     )
     cogs = fields.Float(
         string='COGS', digits='Product Price', readonly=True,
@@ -417,20 +421,25 @@ class OdooerGpReport(models.Model):
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
             -- Post-period COGS
             SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
-            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × invoiced unit price
+            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × invoiced unit cost
             GREATEST(0.0,
                 COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
                 - COALESCE(SUM(cost_upto_end.moved_qty), 0)
-            ) * CASE WHEN SUM(sale.invoiced_qty) != 0
-                     THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
-                     ELSE 0.0
-                END                                                             AS expected_cogs,
-            -- Invoiced unit price (average across all invoice lines)
+            ) * COALESCE(
+                (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
+                0.0
+            ) * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)      AS expected_cogs,
+            -- Invoiced unit price (average sale price across all invoice lines)
             CASE WHEN SUM(sale.invoiced_qty) != 0
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
                  ELSE 0.0
-            END                                                                 AS invoiced_price,
+            END                                                                   AS invoiced_price,
+            -- Invoiced unit cost = product standard cost converted to order UoM
+            COALESCE(
+                (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
+                0.0
+            ) * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)       AS invoiced_cost,
             -- Product standard cost (JSONB, company-dependent), converted from product UoM to order UoM
             COALESCE(
                 (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
