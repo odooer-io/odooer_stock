@@ -418,7 +418,7 @@ class OdooerGpReport(models.Model):
                 FROM cost_moves
                 WHERE move_date <= '{end}'
                 GROUP BY sale_line_id
-            ),
+            )
         """.format(start=start, end=end)
 
     def _select(self):
