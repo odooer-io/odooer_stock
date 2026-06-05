@@ -299,39 +299,42 @@ class OdooerGpReport(models.Model):
             -- COGS amount from invoice lines, proportionally split by revenue qty
             cogs_invoice AS (
                 SELECT
-                    ilr.order_line_id AS sale_line_id,
-                    SUM(
+                    sale_line_id,
+                    SUM(cogs_allocated) AS cogs_total
+                FROM (
+                    SELECT
+                        ilr.order_line_id AS sale_line_id,
                         ipc.total_cogs
                         * aml_rev.quantity
                         / NULLIF(SUM(aml_rev.quantity) OVER (
                             PARTITION BY am.id, aml_rev.product_id
-                        ), 0)
-                    ) AS cogs_total
-                FROM account_move_line aml_rev
-                INNER JOIN sale_order_line_invoice_rel ilr
-                        ON ilr.invoice_line_id = aml_rev.id
-                INNER JOIN account_move am ON am.id = aml_rev.move_id
-                INNER JOIN (
-                    SELECT
-                        aml_cogs.move_id,
-                        aml_cogs.product_id,
-                        SUM(aml_cogs.balance) AS total_cogs
-                    FROM account_move_line aml_cogs
-                    INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
-                    WHERE aa.account_type = 'expense_direct_cost'
-                      AND aml_cogs.move_id IN (
-                          SELECT DISTINCT aml2.move_id
-                          FROM account_move_line aml2
-                          INNER JOIN sale_order_line_invoice_rel ilr2
-                                  ON ilr2.invoice_line_id = aml2.id
-                          WHERE aml2.date BETWEEN '{start}' AND '{end}'
-                      )
-                    GROUP BY aml_cogs.move_id, aml_cogs.product_id
-                ) ipc ON ipc.move_id = am.id
-                     AND ipc.product_id = aml_rev.product_id
-                WHERE am.state = 'posted'
-                  AND aml_rev.date BETWEEN '{start}' AND '{end}'
-                GROUP BY ilr.order_line_id
+                        ), 0) AS cogs_allocated
+                    FROM account_move_line aml_rev
+                    INNER JOIN sale_order_line_invoice_rel ilr
+                            ON ilr.invoice_line_id = aml_rev.id
+                    INNER JOIN account_move am ON am.id = aml_rev.move_id
+                    INNER JOIN (
+                        SELECT
+                            aml_cogs.move_id,
+                            aml_cogs.product_id,
+                            SUM(aml_cogs.balance) AS total_cogs
+                        FROM account_move_line aml_cogs
+                        INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
+                        WHERE aa.account_type = 'expense_direct_cost'
+                          AND aml_cogs.move_id IN (
+                              SELECT DISTINCT aml2.move_id
+                              FROM account_move_line aml2
+                              INNER JOIN sale_order_line_invoice_rel ilr2
+                                      ON ilr2.invoice_line_id = aml2.id
+                              WHERE aml2.date BETWEEN '{start}' AND '{end}'
+                          )
+                        GROUP BY aml_cogs.move_id, aml_cogs.product_id
+                    ) ipc ON ipc.move_id = am.id
+                         AND ipc.product_id = aml_rev.product_id
+                    WHERE am.state = 'posted'
+                      AND aml_rev.date BETWEEN '{start}' AND '{end}'
+                ) sub
+                GROUP BY sale_line_id
             ),
             -- All relevant done moves (no date filter) — partitioned below
             cost_moves AS (
