@@ -319,6 +319,13 @@ class OdooerGpReport(models.Model):
                     FROM account_move_line aml_cogs
                     INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
                     WHERE aa.account_type = 'expense_direct_cost'
+                      AND aml_cogs.move_id IN (
+                          SELECT DISTINCT aml2.move_id
+                          FROM account_move_line aml2
+                          INNER JOIN sale_order_line_invoice_rel ilr2
+                                  ON ilr2.invoice_line_id = aml2.id
+                          WHERE aml2.date BETWEEN '{start}' AND '{end}'
+                      )
                     GROUP BY aml_cogs.move_id, aml_cogs.product_id
                 ) ipc ON ipc.move_id = am.id
                      AND ipc.product_id = aml_rev.product_id
