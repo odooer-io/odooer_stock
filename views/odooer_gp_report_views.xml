@@ -177,6 +177,7 @@
                        sum="COGS for Undelivered" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="undelivered_revenue" string="Revenue for Undelivered" optional="hide"
+                       sum="Revenue for Undelivered"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="invoiced_price" string="Invoiced Unit Price" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
