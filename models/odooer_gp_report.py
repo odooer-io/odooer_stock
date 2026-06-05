@@ -480,7 +480,8 @@ class OdooerGpReport(models.Model):
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
             -- Post-period COGS
             SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
-            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × weighted avg FIFO unit cost
+            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × invoice unit cost
+            -- Qty gap is in product UoM; unit cost (per ordered UoM) converted to product UoM
             GREATEST(0.0,
                 COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
@@ -488,8 +489,9 @@ class OdooerGpReport(models.Model):
             ) * COALESCE(
                 SUM(cogs_invoice.cogs_total) / NULLIF(SUM(sale.invoiced_qty), 0),
                 0.0
-            )                                                                    AS expected_cogs,
+            ) * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)       AS expected_cogs,
             -- Revenue for undelivered qty: invoiced-but-not-delivered × invoiced unit price
+            -- Qty gap is in product UoM; unit price (per ordered UoM) converted to product UoM
             GREATEST(0.0,
                 COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
@@ -497,7 +499,8 @@ class OdooerGpReport(models.Model):
             ) * CASE WHEN SUM(sale.invoiced_qty) != 0
                      THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
                      ELSE 0.0
-                END                                                                 AS undelivered_revenue,
+                END
+            * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)          AS undelivered_revenue,
             -- Invoiced unit price (average sale price across all invoice lines)
             CASE WHEN SUM(sale.invoiced_qty) != 0
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
