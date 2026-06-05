@@ -104,7 +104,7 @@ class OdooerGpReport(models.Model):
     )
     invoiced_cost = fields.Float(
         string='Invoiced Unit Cost', digits='Product Price', readonly=True,
-        help="Product standard cost per ordered UoM, used for expected COGS calculation.",
+        help="All-time weighted average FIFO cost per delivered unit (total FIFO cost / total delivered qty).",
     )
     standard_price = fields.Float(
         string='Standard Cost', digits='Product Price', readonly=True,
@@ -356,6 +356,14 @@ class OdooerGpReport(models.Model):
                 WHERE move_date <= '{end}'
                 GROUP BY sale_line_id
             ),
+            -- All-time deliveries (no date filter) — used for weighted average unit cost
+            cost_total AS (
+                SELECT sale_line_id,
+                       SUM(moved_qty)  AS moved_qty,
+                       SUM(cogs_value) AS cogs
+                FROM cost_moves
+                GROUP BY sale_line_id
+            ),
             -- Company-wide fallback COGS account (ir.default)
             cogs_acct_default AS (
                 SELECT d.company_id, (d.json_value)::int AS account_id
@@ -421,25 +429,25 @@ class OdooerGpReport(models.Model):
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
             -- Post-period COGS
             SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
-            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × invoiced unit cost
+            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × weighted avg FIFO unit cost
             GREATEST(0.0,
                 COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
                 - COALESCE(SUM(cost_upto_end.moved_qty), 0)
             ) * COALESCE(
-                (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
+                SUM(cost_total.cogs) / NULLIF(SUM(cost_total.moved_qty), 0),
                 0.0
-            ) * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)      AS expected_cogs,
+            )                                                                    AS expected_cogs,
             -- Invoiced unit price (average sale price across all invoice lines)
             CASE WHEN SUM(sale.invoiced_qty) != 0
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
                  ELSE 0.0
             END                                                                   AS invoiced_price,
-            -- Invoiced unit cost = product standard cost converted to order UoM
+            -- Invoiced unit cost = all-time weighted average FIFO cost per delivered unit
             COALESCE(
-                (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
+                SUM(cost_total.cogs) / NULLIF(SUM(cost_total.moved_qty), 0),
                 0.0
-            ) * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)       AS invoiced_cost,
+            )                                                                      AS invoiced_cost,
             -- Product standard cost (JSONB, company-dependent), converted from product UoM to order UoM
             COALESCE(
                 (pp.standard_price->>(COALESCE(sale.company_id, so.company_id)::text))::float,
@@ -462,6 +470,7 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cost ON sol.id = cost.sale_line_id
             LEFT JOIN cost_post    ON sol.id = cost_post.sale_line_id
             LEFT JOIN cost_upto_end ON sol.id = cost_upto_end.sale_line_id
+            LEFT JOIN cost_total ON sol.id = cost_total.sale_line_id
             LEFT JOIN sale_upto_end ON sol.id = sale_upto_end.sale_line_id
             LEFT JOIN sale_post    ON sol.id = sale_post.sale_line_id
             LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
