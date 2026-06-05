@@ -297,6 +297,7 @@ class OdooerGpReport(models.Model):
                 GROUP BY ilr.order_line_id
             ),
             -- COGS amount from invoice lines, proportionally split by revenue qty
+            -- Matches Odoo enterprise: uses the product's exact expense account + debit column
             cogs_invoice AS (
                 SELECT
                     sale_line_id,
@@ -317,10 +318,24 @@ class OdooerGpReport(models.Model):
                         SELECT
                             aml_cogs.move_id,
                             aml_cogs.product_id,
-                            SUM(aml_cogs.balance) AS total_cogs
+                            SUM(aml_cogs.debit) AS total_cogs
                         FROM account_move_line aml_cogs
-                        INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
-                        WHERE aa.account_type = 'expense_direct_cost'
+                        INNER JOIN product_product pp ON pp.id = aml_cogs.product_id
+                        INNER JOIN product_template pt ON pt.id = pp.product_tmpl_id
+                        LEFT JOIN product_category pc  ON pc.id  = pt.categ_id
+                        LEFT JOIN product_category pc2 ON pc2.id = pc.parent_id
+                        LEFT JOIN product_category pc3 ON pc3.id = pc2.parent_id
+                        LEFT JOIN cogs_acct_default cad
+                               ON cad.company_id = aml_cogs.company_id
+                        WHERE aml_cogs.account_id = COALESCE(
+                            (pc.property_account_expense_categ_id
+                                ->>(aml_cogs.company_id::text))::int,
+                            (pc2.property_account_expense_categ_id
+                                ->>(aml_cogs.company_id::text))::int,
+                            (pc3.property_account_expense_categ_id
+                                ->>(aml_cogs.company_id::text))::int,
+                            cad.account_id
+                        )
                           AND aml_cogs.move_id IN (
                               SELECT DISTINCT aml2.move_id
                               FROM account_move_line aml2
