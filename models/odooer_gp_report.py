@@ -310,6 +310,7 @@ class OdooerGpReport(models.Model):
                 INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
                 INNER JOIN sale_order_line sol ON sol.id = ilr.order_line_id
                 WHERE am.state = 'posted'
+                  AND aml_rev.date BETWEEN '{start}' AND '{end}'
                   AND aa.account_type = 'expense_direct_cost'
                   AND aml_cogs.product_id = sol.product_id
                 GROUP BY ilr.order_line_id
