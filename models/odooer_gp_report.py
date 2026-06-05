@@ -94,8 +94,8 @@ class OdooerGpReport(models.Model):
         string='Post-Period COGS', digits='Product Price', readonly=True,
         help="FIFO cost for deliveries between the report end date and today.",
     )
-    expected_cogs = fields.Float(
-        string='Expected COGS', digits='Product Price', readonly=True,
+    undelivered_cogs = fields.Float(
+        string='COGS for Undelivered', digits='Product Price', readonly=True,
         help="Invoiced unit cost × qty still undelivered as of today (invoiced upto end − delivered upto end).",
     )
     undelivered_revenue = fields.Float(
@@ -480,7 +480,7 @@ class OdooerGpReport(models.Model):
                 * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1) AS post_period_delivered_qty,
             -- Post-period COGS
             SUM(COALESCE(cost_post.cogs, 0))                                 AS post_period_cogs,
-            -- Expected COGS: invoiced-but-not-delivered qty (up to end) × invoice unit cost
+            -- Undelivered COGS: invoiced-but-not-delivered qty (up to end) × invoice unit cost
             -- Qty gap is in product UoM; unit cost (per ordered UoM) converted to product UoM
             GREATEST(0.0,
                 COALESCE(SUM(sale_upto_end.invoiced_qty), 0)
@@ -489,7 +489,7 @@ class OdooerGpReport(models.Model):
             ) * COALESCE(
                 SUM(cogs_invoice.cogs_total) / NULLIF(SUM(sale.invoiced_qty), 0),
                 0.0
-            ) * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)       AS expected_cogs,
+            ) * COALESCE(prod_uom.factor / NULLIF(order_uom.factor, 0), 1)       AS undelivered_cogs,
             -- Revenue for undelivered qty: invoiced-but-not-delivered × invoiced unit price
             -- Qty gap is in product UoM; unit price (per ordered UoM) converted to product UoM
             GREATEST(0.0,

@@ -44,7 +44,7 @@
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="expected_revenue" string="Expected Revenue" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="expected_cogs" string="Expected COGS" readonly="1"
+                            <field name="undelivered_cogs" string="COGS for Undelivered" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="undelivered_revenue" string="Revenue for Undelivered" readonly="1"
                                    widget="monetary" options="{'currency_field': 'currency_id'}"/>
@@ -173,8 +173,8 @@
                 <field name="post_period_cogs" string="Post-Period COGS"
                        sum="Post-Period COGS" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
-                <field name="expected_cogs" string="Expected COGS"
-                       sum="Expected COGS" widget="monetary"
+                <field name="undelivered_cogs" string="COGS for Undelivered"
+                       sum="COGS for Undelivered" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="undelivered_revenue" string="Revenue for Undelivered" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
