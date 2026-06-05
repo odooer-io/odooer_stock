@@ -296,6 +296,14 @@ class OdooerGpReport(models.Model):
                   AND aml.date > '{end}'
                 GROUP BY ilr.order_line_id
             ),
+            -- Company-wide fallback COGS account (ir.default)
+            cogs_acct_default AS (
+                SELECT d.company_id, (d.json_value)::int AS account_id
+                FROM ir_default d
+                JOIN ir_model_fields f ON f.id = d.field_id
+                WHERE f.name  = 'property_account_expense_categ_id'
+                  AND f.model = 'product.category'
+            ),
             -- COGS amount from invoice lines, proportionally split by revenue qty
             -- Matches Odoo enterprise: uses the product's exact expense account + debit column
             cogs_invoice AS (
@@ -411,14 +419,6 @@ class OdooerGpReport(models.Model):
                 WHERE move_date <= '{end}'
                 GROUP BY sale_line_id
             ),
-            -- Company-wide fallback COGS account (ir.default)
-            cogs_acct_default AS (
-                SELECT d.company_id, (d.json_value)::int AS account_id
-                FROM ir_default d
-                JOIN ir_model_fields f ON f.id = d.field_id
-                WHERE f.name  = 'property_account_expense_categ_id'
-                  AND f.model = 'product.category'
-            )
         """.format(start=start, end=end)
 
     def _select(self):
