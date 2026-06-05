@@ -104,7 +104,7 @@ class OdooerGpReport(models.Model):
     )
     invoiced_cost = fields.Float(
         string='Invoiced Unit Cost', digits='Product Price', readonly=True,
-        help="All-time weighted average FIFO cost per delivered unit (total FIFO cost / total delivered qty).",
+        help="COGS per unit from invoice journal entries (expense_direct_cost / invoiced qty).",
     )
     standard_price = fields.Float(
         string='Standard Cost', digits='Product Price', readonly=True,
@@ -296,6 +296,24 @@ class OdooerGpReport(models.Model):
                   AND aml.date > '{end}'
                 GROUP BY ilr.order_line_id
             ),
+            -- COGS amount from invoice lines (expense_direct_cost on same move, same product)
+            cogs_invoice AS (
+                SELECT
+                    ilr.order_line_id AS sale_line_id,
+                    SUM(aml_cogs.balance) AS cogs_total
+                FROM account_move_line aml_rev
+                INNER JOIN sale_order_line_invoice_rel ilr
+                        ON ilr.invoice_line_id = aml_rev.id
+                INNER JOIN account_move am ON am.id = aml_rev.move_id
+                INNER JOIN account_move_line aml_cogs
+                        ON aml_cogs.move_id = am.id
+                INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
+                INNER JOIN sale_order_line sol ON sol.id = ilr.order_line_id
+                WHERE am.state = 'posted'
+                  AND aa.account_type = 'expense_direct_cost'
+                  AND aml_cogs.product_id = sol.product_id
+                GROUP BY ilr.order_line_id
+            ),
             -- All relevant done moves (no date filter) — partitioned below
             cost_moves AS (
                 SELECT
@@ -354,14 +372,6 @@ class OdooerGpReport(models.Model):
                        SUM(moved_qty) AS moved_qty
                 FROM cost_moves
                 WHERE move_date <= '{end}'
-                GROUP BY sale_line_id
-            ),
-            -- All-time deliveries (no date filter) — used for weighted average unit cost
-            cost_total AS (
-                SELECT sale_line_id,
-                       SUM(moved_qty)  AS moved_qty,
-                       SUM(cogs_value) AS cogs
-                FROM cost_moves
                 GROUP BY sale_line_id
             ),
             -- Company-wide fallback COGS account (ir.default)
@@ -435,7 +445,7 @@ class OdooerGpReport(models.Model):
                     * COALESCE(order_uom.factor / NULLIF(prod_uom.factor, 0), 1)
                 - COALESCE(SUM(cost_upto_end.moved_qty), 0)
             ) * COALESCE(
-                SUM(cost_total.cogs) / NULLIF(SUM(cost_total.moved_qty), 0),
+                SUM(cogs_invoice.cogs_total) / NULLIF(SUM(sale.invoiced_qty), 0),
                 0.0
             )                                                                    AS expected_cogs,
             -- Invoiced unit price (average sale price across all invoice lines)
@@ -443,9 +453,9 @@ class OdooerGpReport(models.Model):
                  THEN SUM(sale.invoiced_total) / SUM(sale.invoiced_qty)
                  ELSE 0.0
             END                                                                   AS invoiced_price,
-            -- Invoiced unit cost = all-time weighted average FIFO cost per delivered unit
+            -- Invoiced unit cost = COGS from invoice journal entries / invoiced qty
             COALESCE(
-                SUM(cost_total.cogs) / NULLIF(SUM(cost_total.moved_qty), 0),
+                SUM(cogs_invoice.cogs_total) / NULLIF(SUM(sale.invoiced_qty), 0),
                 0.0
             )                                                                      AS invoiced_cost,
             -- Product standard cost (JSONB, company-dependent), converted from product UoM to order UoM
@@ -470,7 +480,7 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cost ON sol.id = cost.sale_line_id
             LEFT JOIN cost_post    ON sol.id = cost_post.sale_line_id
             LEFT JOIN cost_upto_end ON sol.id = cost_upto_end.sale_line_id
-            LEFT JOIN cost_total ON sol.id = cost_total.sale_line_id
+            LEFT JOIN cogs_invoice ON sol.id = cogs_invoice.sale_line_id
             LEFT JOIN sale_upto_end ON sol.id = sale_upto_end.sale_line_id
             LEFT JOIN sale_post    ON sol.id = sale_post.sale_line_id
             LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
