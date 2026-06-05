@@ -296,23 +296,34 @@ class OdooerGpReport(models.Model):
                   AND aml.date > '{end}'
                 GROUP BY ilr.order_line_id
             ),
-            -- COGS amount from invoice lines (expense_direct_cost on same move, same product)
+            -- COGS amount from invoice lines, proportionally split by revenue qty
             cogs_invoice AS (
                 SELECT
                     ilr.order_line_id AS sale_line_id,
-                    SUM(aml_cogs.balance) AS cogs_total
+                    SUM(
+                        ipc.total_cogs
+                        * aml_rev.quantity
+                        / NULLIF(SUM(aml_rev.quantity) OVER (
+                            PARTITION BY am.id, aml_rev.product_id
+                        ), 0)
+                    ) AS cogs_total
                 FROM account_move_line aml_rev
                 INNER JOIN sale_order_line_invoice_rel ilr
                         ON ilr.invoice_line_id = aml_rev.id
                 INNER JOIN account_move am ON am.id = aml_rev.move_id
-                INNER JOIN account_move_line aml_cogs
-                        ON aml_cogs.move_id = am.id
-                INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
-                INNER JOIN sale_order_line sol ON sol.id = ilr.order_line_id
+                INNER JOIN (
+                    SELECT
+                        aml_cogs.move_id,
+                        aml_cogs.product_id,
+                        SUM(aml_cogs.balance) AS total_cogs
+                    FROM account_move_line aml_cogs
+                    INNER JOIN account_account aa ON aa.id = aml_cogs.account_id
+                    WHERE aa.account_type = 'expense_direct_cost'
+                    GROUP BY aml_cogs.move_id, aml_cogs.product_id
+                ) ipc ON ipc.move_id = am.id
+                     AND ipc.product_id = aml_rev.product_id
                 WHERE am.state = 'posted'
                   AND aml_rev.date BETWEEN '{start}' AND '{end}'
-                  AND aa.account_type = 'expense_direct_cost'
-                  AND aml_cogs.product_id = sol.product_id
                 GROUP BY ilr.order_line_id
             ),
             -- All relevant done moves (no date filter) — partitioned below
