@@ -438,7 +438,11 @@ class OdooerGpReport(models.Model):
             COALESCE(sale.company_id, so.company_id)                         AS company_id,
             so.id                                                            AS order_id,
             so.partner_id,
-            sale.account_id,
+            COALESCE(
+                sale.account_id,
+                (pt.property_account_income_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int
+            )                                                                AS account_id,
             -- COGS account: direct category → parent → grandparent → ir.default
             COALESCE(
                 (pc.property_account_expense_categ_id
@@ -554,7 +558,8 @@ class OdooerGpReport(models.Model):
     def _group_by(self):
         return (
             "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
-            "pt.categ_id, pt.type, pt.uom_id, sol.product_uom_id, sol.product_uom_qty, "
+            "pt.categ_id, pt.type, pt.uom_id, pt.property_account_income_id, "
+            "sol.product_uom_id, sol.product_uom_qty, "
             "sol.analytic_distribution, "	
             "sol.price_reduce_taxexcl, "
             "prod_uom.factor, order_uom.factor, "
