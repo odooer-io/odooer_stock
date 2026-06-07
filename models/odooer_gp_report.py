@@ -441,6 +441,12 @@ class OdooerGpReport(models.Model):
             COALESCE(
                 sale.account_id,
                 (pt.property_account_income_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                (pc.property_account_income_categ_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                (pc2.property_account_income_categ_id
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                (pc3.property_account_income_categ_id
                     ->>(COALESCE(sale.company_id, so.company_id)::text))::int
             )                                                                AS account_id,
             -- COGS account: direct category → parent → grandparent → ir.default
@@ -565,8 +571,11 @@ class OdooerGpReport(models.Model):
             "prod_uom.factor, order_uom.factor, "
             "pp.standard_price, "
             "pc.property_account_expense_categ_id, "
+            "pc.property_account_income_categ_id, "
             "pc2.property_account_expense_categ_id, "
+            "pc2.property_account_income_categ_id, "
             "pc3.property_account_expense_categ_id, "
+            "pc3.property_account_income_categ_id, "
             "cad.account_id"
         )
 
