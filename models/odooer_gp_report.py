@@ -312,6 +312,13 @@ class OdooerGpReport(models.Model):
                 WHERE f.name  = 'property_account_expense_categ_id'
                   AND f.model = 'product.category'
             ),
+            income_acct_default AS (
+                SELECT d.company_id, (d.json_value)::int AS account_id
+                FROM ir_default d
+                JOIN ir_model_fields f ON f.id = d.field_id
+                WHERE f.name  = 'property_account_income_categ_id'
+                  AND f.model = 'product.category'
+            ),
             -- COGS amount from invoice lines, proportionally split by revenue qty
             -- Matches Odoo enterprise: uses the product's exact expense account + debit column
             cogs_invoice AS (
@@ -447,7 +454,8 @@ class OdooerGpReport(models.Model):
                 (pc2.property_account_income_categ_id
                     ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
                 (pc3.property_account_income_categ_id
-                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int
+                    ->>(COALESCE(sale.company_id, so.company_id)::text))::int,
+                iad.account_id
             )                                                                AS account_id,
             -- COGS account: direct category → parent → grandparent → ir.default
             COALESCE(
@@ -545,6 +553,8 @@ class OdooerGpReport(models.Model):
             LEFT JOIN product_category  pc3 ON pc3.id = pc2.parent_id
             LEFT JOIN cogs_acct_default cad
                    ON cad.company_id = COALESCE(sale.company_id, so.company_id)
+            LEFT JOIN income_acct_default iad
+                   ON iad.company_id = COALESCE(sale.company_id, so.company_id)
             LEFT JOIN cost ON sol.id = cost.sale_line_id
             LEFT JOIN cost_post    ON sol.id = cost_post.sale_line_id
             LEFT JOIN cost_upto_end ON sol.id = cost_upto_end.sale_line_id
@@ -576,7 +586,8 @@ class OdooerGpReport(models.Model):
             "pc2.property_account_income_categ_id, "
             "pc3.property_account_expense_categ_id, "
             "pc3.property_account_income_categ_id, "
-            "cad.account_id"
+            "cad.account_id, "
+            "iad.account_id"
         )
 
     @property
