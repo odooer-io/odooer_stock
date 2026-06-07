@@ -43,6 +43,10 @@ class OdooerGpReport(models.Model):
         selection=[('consu', 'Goods'), ('service', 'Service'), ('combo', 'Combo')],
         string='Product Type', readonly=True,
     )
+    analytic_distribution = fields.Json(
+        string='Analytic Distribution', readonly=True,
+        help="Analytic distribution from the sale order line.",
+    )
     date = fields.Date(string='Order Date', readonly=True)
     name = fields.Char(string='Description', readonly=True)
     ordered_qty = fields.Float(
@@ -450,6 +454,7 @@ class OdooerGpReport(models.Model):
             pt.type                                                          AS product_type,
             sol.product_uom_id                                               AS uom_id,
             sol.product_uom_qty                                              AS ordered_qty,
+            sol.analytic_distribution                                       AS analytic_distribution,
             SUM(sale.invoiced_qty)                                           AS invoiced_qty,
             SUM(sale.invoiced_total)                                         AS invoiced_total,
             SUM(cost.moved_qty)                                              AS moved_qty,
@@ -550,6 +555,7 @@ class OdooerGpReport(models.Model):
         return (
             "sol.id, so.id, sale.account_id, sale.company_id, so.company_id, "
             "pt.categ_id, pt.type, pt.uom_id, sol.product_uom_id, sol.product_uom_qty, "
+            "sol.analytic_distribution, "	
             "sol.price_reduce_taxexcl, "
             "prod_uom.factor, order_uom.factor, "
             "pp.standard_price, "
