@@ -185,7 +185,8 @@
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 <field name="standard_price" string="Standard Cost" optional="hide"
                        widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                <field name="analytic_distribution" string="Analytic" optional="hide"/>
+                <field name="analytic_distribution" string="Analytic" optional="hide"
+                       widget="analytic_distribution"/>
                 <field name="gp" sum="Total GP" widget="monetary"
                        options="{'currency_field': 'currency_id'}"/>
                 <field name="currency_id" column_invisible="1"/>
