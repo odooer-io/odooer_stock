@@ -19,6 +19,11 @@
                         </div>
                     </div>
                 </setting>
+                <setting id="odooer_product_dropdown_display_name_setting"
+                         help="When enabled, product dropdowns (e.g. sale order lines) show [Ref] Name format instead of the tab-separated Name --Ref-- variant.">
+                    <field name="odooer_product_dropdown_display_name"/>
+                    <label for="odooer_product_dropdown_display_name" string="Standard Display Name in Product Dropdown"/>
+                </setting>
             </block>
         </field>
     </record>
