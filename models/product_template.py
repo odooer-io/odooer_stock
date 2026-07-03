@@ -16,6 +16,8 @@ class ProductTemplate(models.Model):
         index=True,
     )
 
+    @api.model
+    @api.readonly
     def web_name_search(self, name, specification, domain=None, operator='ilike', limit=100):
         results = super().web_name_search(name, specification, domain, operator, limit)
         use_display_name = self.env['ir.config_parameter'].sudo().get_param(
