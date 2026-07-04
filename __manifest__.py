@@ -43,6 +43,7 @@ Key features:
         'views/odooer_gp_report_views.xml',
         'views/odooer_fifo_regenerate_views.xml',
         'views/odooer_menus.xml',
+        'views/sale_report_views.xml',
     ],
     'installable': True,
     'application': False,

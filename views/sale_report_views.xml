@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add Product Brand and Product Group columns to Sales Analysis list view -->
+    <record id="sale_report_view_tree_brand_group" model="ir.ui.view">
+        <field name="name">sale.report.view.list.brand.group</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.sale_report_view_tree"/>
+        <field name="arch" type="xml">
+            <field name="product_id" position="after">
+                <field name="brand_id" optional="show"/>
+                <field name="group_id" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add Product Brand and Product Group to pivot view row groupings -->
+    <record id="sale_report_pivot_brand_group" model="ir.ui.view">
+        <field name="name">sale.report.pivot.brand.group</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.view_order_product_pivot"/>
+        <field name="arch" type="xml">
+            <pivot position="inside">
+                <field name="brand_id" type="row" optional="hide"/>
+                <field name="group_id" type="row" optional="hide"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Add Product Brand and Product Group search fields and Group By filters -->
+    <record id="sale_report_search_brand_group" model="ir.ui.view">
+        <field name="name">sale.report.search.brand.group</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.view_order_product_search"/>
+        <field name="arch" type="xml">
+            <!-- Search fields after product_tmpl_id -->
+            <field name="product_tmpl_id" position="after">
+                <field name="brand_id"/>
+                <field name="group_id"/>
+            </field>
+            <!-- Group By filters after Product Category -->
+            <filter name="Category" position="after">
+                <filter string="Product Brand" name="brand_id" context="{'group_by':'brand_id'}"/>
+                <filter string="Product Group" name="group_id" context="{'group_by':'group_id'}"/>
+            </filter>
+        </field>
+    </record>
+</odoo>

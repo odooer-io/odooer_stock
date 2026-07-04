@@ -14,3 +14,4 @@ from . import odooer_outgoing_report
 from . import odooer_gp_report
 from . import odooer_onhand_report
 from . import odooer_fifo_regenerate
+from . import sale_report
