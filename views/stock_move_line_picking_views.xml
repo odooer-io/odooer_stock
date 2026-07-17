@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Add optional='hide' to owner_id in move line operations list (Details popup per move) -->
+    <record id="view_stock_move_line_operation_tree_owner_optional" model="ir.ui.view">
+        <field name="name">stock.move.line.operations.list.owner.optional</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
+        <field name="arch" type="xml">
+            <field name="owner_id" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add optional='hide' to owner_id in detailed operations list (Detailed Operations tab) -->
+    <record id="view_stock_move_line_detailed_operation_tree_owner_optional" model="ir.ui.view">
+        <field name="name">stock.move.line.detailed.operations.list.owner.optional</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_stock_move_line_detailed_operation_tree"/>
+        <field name="arch" type="xml">
+            <field name="owner_id" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+        </field>
+    </record>
+
+</odoo>
