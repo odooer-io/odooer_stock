@@ -1,26 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Add optional='hide' to owner_id in move line operations list (Details popup per move) -->
+    <!-- Show owner_id in move line operations list (Details popup per move).
+         Odoo hides it when show_quant=True (outgoing/internal), but users want to see
+         the auto-set owner. We clear column_invisible and make it readonly in quant-pick
+         mode so the value is visible but consistent with the selected quant. -->
     <record id="view_stock_move_line_operation_tree_owner_optional" model="ir.ui.view">
         <field name="name">stock.move.line.operations.list.owner.optional</field>
         <field name="model">stock.move.line</field>
         <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
         <field name="arch" type="xml">
             <field name="owner_id" position="attributes">
-                <attribute name="optional">hide</attribute>
+                <attribute name="column_invisible">False</attribute>
+                <attribute name="optional">show</attribute>
+                <attribute name="readonly">parent.show_quant</attribute>
             </field>
         </field>
     </record>
 
-    <!-- Add optional='hide' to owner_id in detailed operations list (Detailed Operations tab) -->
+    <!-- Show owner_id in detailed operations list (Detailed Operations tab).
+         Odoo hides it on incoming and restricts it to group_tracking_owner.
+         Show it always as optional so users can toggle it per their needs. -->
     <record id="view_stock_move_line_detailed_operation_tree_owner_optional" model="ir.ui.view">
         <field name="name">stock.move.line.detailed.operations.list.owner.optional</field>
         <field name="model">stock.move.line</field>
         <field name="inherit_id" ref="stock.view_stock_move_line_detailed_operation_tree"/>
         <field name="arch" type="xml">
             <field name="owner_id" position="attributes">
-                <attribute name="optional">hide</attribute>
+                <attribute name="column_invisible">False</attribute>
+                <attribute name="groups"></attribute>
+                <attribute name="optional">show</attribute>
             </field>
         </field>
     </record>
