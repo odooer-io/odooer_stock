@@ -39,6 +39,13 @@ class OdooerGpReport(models.Model):
     product_id = fields.Many2one('product.product', string='Product', readonly=True)
     categ_id = fields.Many2one('product.category', string='Category', readonly=True)
     uom_id = fields.Many2one('uom.uom', string='Unit', readonly=True)
+    owner_id = fields.Many2one(
+        'res.partner', string='Owner', readonly=True,
+        help="Consignment owner of the delivered stock for this sale line, if any. "
+             "Set from stock.move.line.owner_id regardless of the is_in/is_out valuation "
+             "flags, so it is populated even for consignment deliveries not owned by the "
+             "company (which are excluded from delivered/COGS totals).",
+    )
     product_type = fields.Selection(
         selection=[('consu', 'Goods'), ('service', 'Service'), ('combo', 'Combo')],
         string='Product Type', readonly=True,
@@ -433,6 +440,21 @@ class OdooerGpReport(models.Model):
                 FROM cost_moves
                 WHERE move_date <= '{end}'
                 GROUP BY sale_line_id
+            ),
+            -- Consignment/quant owner for the delivered stock of this sale line.
+            -- Sourced directly from stock_move_line.owner_id, independent of the
+            -- is_in/is_out valuation flags used above, so it is populated even for
+            -- consignment deliveries that are excluded from moved_qty/cogs.
+            move_owner AS (
+                SELECT DISTINCT
+                    COALESCE(sm.sale_line_id, orig.sale_line_id) AS sale_line_id,
+                    sml.owner_id
+                FROM stock_move_line sml
+                JOIN stock_move sm ON sm.id = sml.move_id
+                LEFT JOIN stock_move orig ON orig.id = sm.origin_returned_move_id
+                WHERE sml.state = 'done'
+                  AND sml.owner_id IS NOT NULL
+                  AND (sm.sale_line_id IS NOT NULL OR orig.sale_line_id IS NOT NULL)
             )
         """.format(start=start, end=end)
 
@@ -470,6 +492,7 @@ class OdooerGpReport(models.Model):
             sol.product_id,
             pt.categ_id,
             pt.type                                                          AS product_type,
+            MAX(move_owner.owner_id)                                         AS owner_id,
             sol.product_uom_id                                               AS uom_id,
             sol.product_uom_qty                                              AS ordered_qty,
             sol.analytic_distribution                                       AS analytic_distribution,
@@ -561,6 +584,7 @@ class OdooerGpReport(models.Model):
             LEFT JOIN cogs_invoice ON sol.id = cogs_invoice.sale_line_id
             LEFT JOIN sale_upto_end ON sol.id = sale_upto_end.sale_line_id
             LEFT JOIN sale_post    ON sol.id = sale_post.sale_line_id
+            LEFT JOIN move_owner   ON sol.id = move_owner.sale_line_id
             LEFT JOIN uom_uom prod_uom  ON prod_uom.id  = pt.uom_id
             LEFT JOIN uom_uom order_uom ON order_uom.id = sol.product_uom_id
         """

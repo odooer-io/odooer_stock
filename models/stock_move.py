@@ -66,6 +66,19 @@ class StockMove(models.Model):
             move.odooer_value = total
             move.odooer_unit_cost = total / move.quantity if move.quantity else 0.0
 
+    # ── Update Value wizard ───────────────────────────────────────────────────
+
+    def action_open_update_value_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Update Value',
+            'res_model': 'odooer.stock.move.update.value',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_move_id': self.id},
+        }
+
     # ── _action_done hook ─────────────────────────────────────────────────────
 
     def _action_done(self, cancel_backorder=False):

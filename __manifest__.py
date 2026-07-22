@@ -35,6 +35,7 @@ Key features:
         'security/ir.model.access.csv',
         'views/res_config_settings_views.xml',
         'views/stock_move_line_picking_views.xml',
+        'views/stock_move_update_value_views.xml',
         'views/odooer_product_brand_views.xml',
         'views/odooer_product_group_views.xml',
         'views/product_template_views.xml',

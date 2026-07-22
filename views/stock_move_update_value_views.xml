@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Update Value wizard form ──────────────────────────────────────── -->
+    <record id="view_odooer_stock_move_update_value_form" model="ir.ui.view">
+        <field name="name">odooer.stock.move.update.value.form</field>
+        <field name="model">odooer.stock.move.update.value</field>
+        <field name="arch" type="xml">
+            <form string="Update Value">
+                <group>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="move_id" readonly="1"/>
+                    <field name="value"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Save" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── stock.view_move_form: quantity/value fields + Update Value button ── -->
+    <record id="view_move_form_update_value" model="ir.ui.view">
+        <field name="name">stock.move.form.update.value</field>
+        <field name="model">stock.move</field>
+        <field name="inherit_id" ref="stock.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_uom_qty']/parent::div" position="after">
+                <label for="quantity"/>
+                <div class="o_row">
+                    <field name="quantity" readonly="1"/>
+                    <field name="product_uom" widget="many2one_uom" options="{'no_open': True, 'no_create': True}" groups="uom.group_uom"/>
+                </div>
+                <label for="value"/>
+                <div class="o_row">
+                    <field name="value" widget="monetary" options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                    <button name="action_open_update_value_wizard" type="object"
+                            string="Update Value" class="btn-link"
+                            icon="fa-pencil"
+                            invisible="location_usage in ('internal', 'transit') or location_dest_usage not in ('internal', 'transit')"/>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='company_id'][1]" position="after">
+                <field name="company_currency_id" invisible="1"/>
+                <field name="location_usage" invisible="1"/>
+                <field name="location_dest_usage" invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Access ─────────────────────────────────────────────────────────── -->
+    <record id="action_odooer_stock_move_update_value" model="ir.actions.act_window">
+        <field name="name">Update Value</field>
+        <field name="res_model">odooer.stock.move.update.value</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

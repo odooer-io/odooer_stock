@@ -4,6 +4,7 @@ from . import odooer_product_group
 from . import product_template
 from . import odooer_fifo_link
 from . import stock_move
+from . import stock_move_update_value
 from . import product_product
 from . import res_company
 from . import res_config_settings

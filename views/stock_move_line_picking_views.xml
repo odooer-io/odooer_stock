@@ -34,4 +34,45 @@
         </field>
     </record>
 
+    <!-- Add owner_id column to stock.view_move_line_tree (Inventory > Reporting > Moves
+         History, and other places listing stock.move.line records). owner_id is a real
+         stored field on stock.move.line, not present in this list by default. -->
+    <record id="view_move_line_tree_owner_optional" model="ir.ui.view">
+        <field name="name">stock.move.line.list.owner.optional</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <field name="state" position="before">
+                <field name="owner_id" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Show the move's own move lines (Move Lines) on stock.view_move_form, inside the
+         Linked Moves group, above Origin Moves, so users can see the detailed
+         lot/package/owner split for this move without opening a separate popup. -->
+    <record id="view_move_form_move_lines" model="ir.ui.view">
+        <field name="name">stock.move.form.move.lines</field>
+        <field name="model">stock.move</field>
+        <field name="inherit_id" ref="stock.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="move_orig_ids" position="before">
+                <field name="move_line_ids" string="Move Lines" colspan="2" readonly="1">
+                    <list>
+                        <field name="product_id"/>
+                        <field name="lot_id" groups="stock.group_production_lot"/>
+                        <field name="package_id" groups="stock.group_tracking_lot"/>
+                        <field name="result_package_id" groups="stock.group_tracking_lot"/>
+                        <field name="location_id"/>
+                        <field name="location_dest_id"/>
+                        <field name="owner_id" groups="stock.group_tracking_owner"/>
+                        <field name="quantity"/>
+                        <field name="product_uom_id" groups="uom.group_uom"/>
+                        <field name="state"/>
+                    </list>
+                </field>
+            </field>
+        </field>
+    </record>
+
 </odoo>
