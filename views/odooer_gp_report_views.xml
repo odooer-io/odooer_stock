@@ -89,7 +89,7 @@
                                            decoration-warning="payment_state == 'partial'"
                                            decoration-danger="payment_state == 'not_paid'"/>
                                     <field name="amount_total" string="Total"
-                                           widget="monetary"
+                                           widget="monetary" sum="Total"
                                            options="{'currency_field': 'currency_id'}"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
@@ -105,6 +105,10 @@
                                     <field name="location_id" string="Source Location"/>
                                     <field name="location_dest_id" string="Destination"/>
                                     <field name="quantity" string="Qty"/>
+                                    <field name="signed_odooer_value" string="Value" sum="Total"
+                                           widget="monetary"
+                                           options="{'currency_field': 'company_currency_id'}"/>
+                                    <field name="company_currency_id" column_invisible="1"/>
                                     <field name="state" string="Status"
                                            widget="badge"
                                            decoration-success="state == 'done'"

@@ -46,6 +46,15 @@ class StockMove(models.Model):
         help="Effective unit cost = odooer_value / quantity.",
     )
 
+    signed_odooer_value = fields.Monetary(
+        string='Signed Value',
+        compute='_compute_signed_odooer_value', store=True,
+        currency_field='company_currency_id',
+        help="Move value signed by direction: negative for outgoing moves, "
+             "positive for incoming moves. Useful for running totals that "
+             "combine both directions (e.g. delivered COGS vs. received value).",
+    )
+
     # ── Partial index for fast FIFO queue lookup ──────────────────────────────
 
     def init(self):
@@ -65,6 +74,11 @@ class StockMove(models.Model):
             total = sum(move.odooer_fifo_link_ids.mapped('outgoing_value'))
             move.odooer_value = total
             move.odooer_unit_cost = total / move.quantity if move.quantity else 0.0
+
+    @api.depends('value', 'is_in', 'is_out')
+    def _compute_signed_odooer_value(self):
+        for move in self:
+            move.signed_odooer_value = -move.value if move.is_out else move.value
 
     # ── Update Value wizard ───────────────────────────────────────────────────
 
