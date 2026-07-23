@@ -24,10 +24,6 @@
                             <field name="product_id" readonly="1"/>
                             <field name="uom_id" string="Unit" readonly="1"/>
                             <field name="ordered_qty" readonly="1"/>
-                        </group>
-                    </group>
-                    <group>
-                        <group string="Quantities">
                             <field name="invoiced_qty" readonly="1"/>
                             <field name="moved_qty_display" string="Delivered Qty (Period)" readonly="1" invisible="1"/>
                             <field name="post_period_invoiced_qty" string="Post-Period Invoiced" readonly="1"/>
