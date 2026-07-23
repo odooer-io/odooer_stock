@@ -88,8 +88,8 @@
                                            decoration-success="payment_state == 'paid'"
                                            decoration-warning="payment_state == 'partial'"
                                            decoration-danger="payment_state == 'not_paid'"/>
-                                    <field name="amount_total" string="Total"
-                                           widget="monetary" sum="Total"
+                                    <field name="amount_total_signed" string="Total" sum="Total"
+                                           widget="monetary"
                                            options="{'currency_field': 'currency_id'}"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
