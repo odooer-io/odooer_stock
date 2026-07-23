@@ -75,10 +75,10 @@ class StockMove(models.Model):
             move.odooer_value = total
             move.odooer_unit_cost = total / move.quantity if move.quantity else 0.0
 
-    @api.depends('value', 'is_in', 'is_out')
+    @api.depends('odooer_value', 'is_in', 'is_out')
     def _compute_signed_odooer_value(self):
         for move in self:
-            move.signed_odooer_value = -move.value if move.is_out else move.value
+            move.signed_odooer_value = -move.odooer_value if move.is_out else move.odooer_value
 
     # ── Update Value wizard ───────────────────────────────────────────────────
 
