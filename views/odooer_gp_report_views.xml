@@ -33,36 +33,46 @@
                             <field name="post_period_invoiced_qty" string="Post-Period Invoiced" readonly="1"/>
                             <field name="post_period_delivered_qty" string="Post-Period Delivered" readonly="1"/>
                         </group>
-                        <group string="Financials">
-                            <field name="invoiced_total" string="Revenue" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="cogs" string="COGS (Period)" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="post_period_revenue" string="Post-Period Revenue" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="post_period_cogs" string="Post-Period COGS" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="expected_revenue" string="Expected Revenue" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="undelivered_cogs" string="COGS for Undelivered" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="undelivered_revenue" string="Revenue for Undelivered" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="invoiced_price" string="Invoiced Unit Price" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="invoiced_cost" string="Invoiced Unit Cost" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="standard_price" string="Standard Cost" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="gp" string="Gross Profit" readonly="1"
-                                   widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="margin_pct" string="Margin %" readonly="1"/>
-                            <field name="currency_id" invisible="1"/>
-                        </group>
                     </group>
+                    <field name="currency_id" invisible="1"/>
 
                     <!-- Tabs -->
                     <notebook>
+                        <!-- Financials tab -->
+                        <page string="Financials" name="financials">
+                            <group>
+                                <group string="Revenue">
+                                    <field name="invoiced_total" string="Revenue" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="post_period_revenue" string="Post-Period Revenue" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="undelivered_revenue" string="Revenue for Undelivered" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="expected_revenue" string="Expected Revenue" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="invoiced_price" string="Invoiced Unit Price" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                </group>
+                                <group string="Cost">
+                                    <field name="cogs" string="COGS (Period)" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="post_period_cogs" string="Post-Period COGS" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="undelivered_cogs" string="COGS for Undelivered" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="invoiced_cost" string="Invoiced Unit Cost" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="standard_price" string="Standard Cost" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                </group>
+                                <group string="Margin">
+                                    <field name="gp" string="Gross Profit" readonly="1"
+                                           widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="margin_pct" string="Margin %" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+
                         <!-- Invoices tab -->
                         <page string="Invoices" name="invoices">
                             <field name="invoice_ids" readonly="1" nolabel="1">
