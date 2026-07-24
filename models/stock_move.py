@@ -35,9 +35,12 @@ class StockMove(models.Model):
         string='FIFO Value (Odooer)',
         compute='_compute_odooer_value', store=True,
         currency_field='company_currency_id',
-        help="FIFO-attributed COGS for this outgoing move. "
-             "Automatically updates when any linked incoming move's value "
-             "changes (bill, landed cost, manual adjustment).",
+        help="FIFO-attributed COGS for this outgoing move: the sum of "
+             "quantity × unit cost across every incoming lot this move "
+             "consumed from the FIFO queue. Automatically updates when any "
+             "linked incoming move's value changes (bill, landed cost, "
+             "manual adjustment). Always 0 for incoming moves — FIFO links "
+             "are only attributed to outgoing moves (see odooer_fifo_link_ids).",
     )
     odooer_unit_cost = fields.Float(
         string='FIFO Unit Cost (Odooer)',
@@ -50,9 +53,13 @@ class StockMove(models.Model):
         string='Signed Value',
         compute='_compute_signed_odooer_value', store=True,
         currency_field='company_currency_id',
-        help="Move value signed by direction: negative for outgoing moves, "
-             "positive for incoming moves. Useful for running totals that "
-             "combine both directions (e.g. delivered COGS vs. received value).",
+        help="Move value signed by direction, so incoming and outgoing "
+             "moves can be summed together meaningfully: for outgoing moves "
+             "this is -odooer_value (negative FIFO COGS); for incoming "
+             "moves this is the native 'value' field (positive receipt "
+             "value from stock_account), since odooer_value is always 0 "
+             "for incoming moves. Useful for a running total that combines "
+             "both directions (e.g. delivered COGS vs. received value).",
     )
 
     # ── Partial index for fast FIFO queue lookup ──────────────────────────────

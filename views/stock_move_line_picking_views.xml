@@ -74,5 +74,24 @@
             </field>
         </field>
     </record>
+    <!-- Add FIFO Value / Signed Value columns to stock.view_move_tree.
+         Native 'value' becomes optional=hide in favour of these Odooer
+         FIFO-aware columns; 'signed_odooer_value' is optional=show so it's
+         visible by default, and 'odooer_value' (FIFO Value) shows a
+         column-sum aggregation. -->
+    <record id="view_move_tree_odooer_value" model="ir.ui.view">
+        <field name="name">stock.move.list.odooer.value</field>
+        <field name="model">stock.move</field>
+        <field name="inherit_id" ref="stock_account.stock_move_view_list"/>
+        <field name="arch" type="xml">
+            <field name="value" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+            <field name="remaining_value" position="after">
+                <field name="odooer_value" string="FIFO Value" optional="hide" sum="Total"/>
+                <field name="signed_odooer_value" string="Signed Value" optional="show" sum="Total"/>
+            </field>
+        </field>
+    </record>
 
 </odoo>
