@@ -63,11 +63,7 @@ class OdooerFifoRegenerate(models.TransientModel):
             link_count, elapsed,
         )
 
-        # Invalidate caches so computed fields recompute
-        self.env['stock.move'].invalidate_model(
-            ['odooer_value', 'odooer_unit_cost', 'odooer_remaining_qty']
-        )
-        self.env['product.product'].invalidate_model(['odooer_fifo_cost'])
+        self._recompute_downstream_fields()
 
         self.write({
             'state': 'done',
@@ -82,6 +78,59 @@ class OdooerFifoRegenerate(models.TransientModel):
             'view_mode': 'form',
             'target': 'new',
         }
+
+    def _recompute_downstream_fields(self):
+        """
+        Force-recompute and persist every stored computed field that
+        depends on odooer_fifo_link, after it was bulk-rebuilt via raw SQL.
+
+        Raw SQL INSERT/DELETE on odooer_fifo_link bypasses the ORM, so it
+        never triggers the automatic @api.depends recompute machinery.
+        invalidate_model() alone is NOT enough for stored fields — it only
+        clears the in-memory cache; the stale value stays in the DB column
+        until the field is explicitly recomputed and flushed. This caused
+        stock_move.odooer_value (and everything derived from it) to drift
+        out of sync with the freshly-rebuilt odooer_fifo_link records.
+        """
+        StockMove = self.env['stock.move']
+        FifoLink = self.env['odooer.fifo.link']
+
+        # Invalidate the reverse one2many caches so we re-read fresh links
+        # from the DB (the SQL function fully replaced them).
+        StockMove.invalidate_model([
+            'odooer_fifo_link_ids', 'odooer_incoming_link_ids',
+            'odooer_remaining_qty',  # plain field, written directly by SQL
+        ])
+
+        # 1) odooer.fifo.link: unit_cost / outgoing_value.
+        # The SQL function already computes/inserts matching values directly,
+        # this is a belt-and-braces consistency pass so the ORM-side compute
+        # formula and the stored DB values can never silently diverge.
+        links = FifoLink.search([('company_id', '=', self.company_id.id)])
+        if links:
+            links._compute_outgoing_value()
+            links.flush_recordset(['unit_cost', 'outgoing_value'])
+
+        # 2) stock.move: odooer_value / odooer_unit_cost (FIFO COGS,
+        # outgoing moves only) and signed_odooer_value (both directions).
+        moves = StockMove.search([
+            ('company_id', '=', self.company_id.id),
+            ('state', '=', 'done'),
+            '|', ('is_in', '=', True), ('is_out', '=', True),
+        ])
+        if moves:
+            moves._compute_odooer_value()
+            moves.flush_recordset(['odooer_value', 'odooer_unit_cost'])
+            moves._compute_signed_odooer_value()
+            moves.flush_recordset(['signed_odooer_value'])
+
+        # 3) product.product: odooer_fifo_cost (current FIFO next-out cost).
+        products = self.env['product.product'].search([
+            ('id', 'in', moves.mapped('product_id.id')),
+        ])
+        if products:
+            products._compute_odooer_fifo_cost()
+            products.flush_recordset(['odooer_fifo_cost'])
 
     def _install_sql_function(self):
         """
